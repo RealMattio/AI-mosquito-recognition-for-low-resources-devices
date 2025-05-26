@@ -175,4 +175,9 @@ cython_debug/
 
 #Data files
 dataset/
+dataset1/
 augmented_dataset/
+
+prep.py
+Augmented Insect recognition images.zip
+

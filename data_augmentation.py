@@ -33,6 +33,40 @@ if os.path.exists(output_augmented_dir):
 # os.makedirs(output_augmented_dir, exist_ok=True)
 # print(f"Directory di output '{output_augmented_dir}' pronta.")
 
+# Sposto le immagini non di zanzare in una sottodirectory accorpando tutte le altre classi
+
+folders = []
+for entry in os.listdir(dataset_dir):
+    # Verifichiamo se l'entry è una directory
+    if os.path.isdir(os.path.join(dataset_dir, entry)):
+        folders.append(entry)
+folders.remove('Mosquito')  # Rimuovo la cartella delle zanzare dalla lista
+print(f"Trovate {len(folders)} cartelle di immagini non di zanzare: {folders}")
+# Creiamo una directory per le immagini non di zanzare
+os.makedirs(os.path.join(dataset_dir, 'Not_Mosquito'), exist_ok=True)
+non_zanzare_dir = os.path.join(dataset_dir, 'Not_Mosquito')
+# Spostiamo le immagini non di zanzare in questa directory
+for folder in folders:
+    folder = os.path.join(dataset_dir, folder)
+    nome_cartella = os.path.basename(folder)  # Ottengo il nome della cartella
+    for nome_file in tqdm(os.listdir(folder), desc=f"Processando cartella '{nome_cartella}'"):
+        percorso_file = os.path.join(folder, nome_file)
+        if os.path.isfile(percorso_file):
+            # Aggiungo il nome della cartella di partenza per evitare conflitti di nomi
+            nuovo_nome_file = f"{nome_cartella}_{nome_file}"
+            nuovo_percorso_file = os.path.join(non_zanzare_dir, nuovo_nome_file)
+            counter = 1
+            base, estensione = os.path.splitext(nuovo_percorso_file)
+            while os.path.exists(nuovo_percorso_file):
+                nuovo_nome = f"{base}_{counter}{estensione}"
+                nuovo_percorso_file = os.path.join(non_zanzare_dir, nuovo_nome)
+                counter += 1
+
+            shutil.move(percorso_file, nuovo_percorso_file)
+    # Rimuovo la cartella vuota dopo lo spostamento
+    shutil.rmtree(folder)
+
+
 
 # --- 3. Caricamento del Dataset Completo ---
 # Carico l'intero dataset senza suddivisione in train/validation
