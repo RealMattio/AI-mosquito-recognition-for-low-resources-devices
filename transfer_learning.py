@@ -206,3 +206,12 @@ class TransferLearning:
         ax2.set(title='Accuratezza', xlabel='Epoca', ylabel='Acc')
         ax2.legend(); ax2.grid()
         plt.tight_layout(); plt.show()
+
+
+
+'''
+--- Risultati Finali ---
+ResNet18: 0.8659
+ResNet50: 0.8665
+MobileNetV2: 0.8674
+'''
