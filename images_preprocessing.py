@@ -14,7 +14,7 @@ class ImagePreprocessor:
     """
 
     def __init__(self, image_dir='./augmented_dataset', target_size=(128, 128), convert_to_grayscale=False,
-                 test_set_size=0.10, validation_set_size=0.20, random_state=42):
+                 test_set_size=0.10, validation_set_size=0.20, random_state=42, mean=None, std=None):
         """
         Inizializza il preprocessore con i parametri specificati.
         :param image_dir: Directory contenente le immagini, strutturate per classi.
@@ -30,6 +30,8 @@ class ImagePreprocessor:
         self.test_set_size = test_set_size
         self.validation_set_size = validation_set_size
         self.random_state = random_state 
+        self.mean = mean  # Media per la standardizzazione (opzionale)
+        self.std = std    # Deviazione standard per la standardizzazione (opzionale)
 
     
     def load_images_and_labels(self, image_dir):
@@ -247,7 +249,7 @@ class ImagePreprocessor:
             # Scegli se standardizzare o normalizzare a [0,1]
             # Per standardizzare, imposta use_standardization = True
             # Per normalizzare a [0,1], imposta use_standardization = False
-            use_standardization = True # CAMBIA QUESTO PER TESTARE
+            use_standardization = False # CAMBIA QUESTO PER TESTARE
 
             if use_standardization:
                 print("Utilizzo della standardizzazione (Z-score).")
@@ -259,6 +261,17 @@ class ImagePreprocessor:
                 )
                 X_test = self.preprocess_dataset(
                     X_test_orig, self.target_size, self.convert_to_grayscale, training_mean=train_mean, training_std=train_std
+                )
+            elif self.mean is not None and self.std is not None:
+                print("Utilizzo della standardizzazione con media e deviazione standard specificate.")
+                X_train = self.preprocess_dataset(
+                    X_train_orig, self.target_size, self.convert_to_grayscale, fit_on_training=False, training_mean=self.mean, training_std=self.std
+                )
+                X_val = self.preprocess_dataset(
+                    X_val_orig, self.target_size, self.convert_to_grayscale, fit_on_training=False, training_mean=self.mean, training_std=self.std
+                )
+                X_test = self.preprocess_dataset(
+                    X_test_orig, self.target_size, self.convert_to_grayscale, fit_on_training=False, training_mean=self.mean, training_std=self.std
                 )
             else:
                 print("Utilizzo della normalizzazione a [0,1].")
@@ -277,7 +290,7 @@ class ImagePreprocessor:
             print(f"- X_train: {X_train.shape}, y_train: {y_train.shape}")
             print(f"- X_val:   {X_val.shape}, y_val: {y_val.shape}")
             print(f"- X_test:  {X_test.shape}, y_test: {y_test.shape}")
-
+            '''
             # Verifica i valori dei pixel dopo il preprocessing (dovrebbero essere normalizzati)
             print(f"\nValori min/max di un campione X_train dopo il preprocessing:")
             if len(X_train) > 0:
@@ -305,7 +318,7 @@ class ImagePreprocessor:
                     plt.imshow(img_to_show)
                 plt.axis('off')
                 plt.show()
-
+            '''
             print("\nPreprocessing completato.")
             return X_train, y_train, X_val, y_val, X_test, y_test, class_names, label_map
             # Ora X_train, y_train, X_val, y_val, X_test, y_test sono pronti
