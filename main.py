@@ -12,7 +12,7 @@ def main():
     print("Processo di preprocessing e data augmentation completato.")
 
     # Inizializza il modello di transfer learning
-    transfer_learning = TransferLearning(X_train, y_train, X_val, y_val, need_normalize=False,need_resize=False)
+    transfer_learning = TransferLearning(X_train, y_train, X_val, y_val, need_normalize=False,need_resize=False, num_epochs=60, early_stop_patience=10)
     # Esegui il training del modello
     transfer_learning.run_transfer_learning()
     print("Processo di transfer learning completato.")
