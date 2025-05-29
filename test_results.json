@@ -1,0 +1,17 @@
+{
+    "MobileNetV2": {
+        "filename": "MobileNetV2_0.8674.pth",
+        "loaded_accuracy": 0.8674,
+        "test_accuracy": 0.8655430711610487
+    },
+    "ResNet18": {
+        "filename": "ResNet18_0.8659.pth",
+        "loaded_accuracy": 0.8659,
+        "test_accuracy": 0.8610486891385768
+    },
+    "ResNet50": {
+        "filename": "ResNet50_0.8665.pth",
+        "loaded_accuracy": 0.8665,
+        "test_accuracy": 0.8659176029962548
+    }
+}

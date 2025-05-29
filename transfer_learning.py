@@ -215,3 +215,73 @@ ResNet18: 0.8659
 ResNet50: 0.8665
 MobileNetV2: 0.8674
 '''
+def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_classes=2,
+                              batch_size=32, need_resize=True, need_normalize=True, device=None,
+                              output_json='test_results.json'):
+    """
+    Carica tutti i modelli salvati in models_dir, valuta su X_test e y_test, e salva le prestazioni in JSON.
+    """
+    # Device
+    device = device or (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
+
+    # Preprocessing: stessa pipeline di validation
+    transforms_list = []
+    if need_resize:
+        transforms_list.append(transforms.Resize((224, 224)))
+    transforms_list.append(transforms.ToTensor())
+    if need_normalize:
+        transforms_list.append(transforms.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]))
+    test_transform = transforms.Compose(transforms_list)
+
+    # Dataset e DataLoader
+    test_dataset = CustomTensorDataset(X_test, y_test, transform=test_transform)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+    results = {}
+
+    # Trova tutti i file .pth
+    for filename in os.listdir(models_dir):
+        if filename.endswith('.pth'):
+            model_name = filename[:-4]
+            # Recupera struttura e accuracy dal nome file (es. ResNet18_0.9123)
+            if '_' in model_name:
+                name, acc_str = model_name.rsplit('_', 1)
+            else:
+                name, acc_str = model_name, ''
+
+            # Costruisci modello
+            model = None
+            try:
+                model = TransferLearning(None,None,None,None, num_classes=num_classes).get_model(name, num_classes)
+                # Carica pesi
+                path = os.path.join(models_dir, filename)
+                model.load_state_dict(torch.load(path, map_location=device))
+                model.to(device)
+                model.eval()
+
+                # Valutazione sul test set
+                running_corrects = 0
+                total = 0
+                with torch.no_grad():
+                    for inputs, labels in test_loader:
+                        inputs, labels = inputs.to(device), labels.to(device)
+                        outputs = model(inputs)
+                        _, preds = torch.max(outputs, 1)
+                        running_corrects += torch.sum(preds == labels.data)
+                        total += labels.size(0)
+                test_acc = (running_corrects.double() / total).item()
+
+                results[name] = {
+                    'filename': filename,
+                    'loaded_accuracy': float(acc_str) if acc_str else None,
+                    'test_accuracy': test_acc
+                }
+            except Exception as e:
+                print(f"Errore caricando {filename}: {e}")
+
+    # Salvataggio in JSON
+    import json
+    with open(output_json, 'w') as f:
+        json.dump(results, f, indent=4)
+    print(f"Risultati di test salvati in {output_json}")
+    return results
