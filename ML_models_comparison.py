@@ -39,27 +39,31 @@ METRICS_JSON = os.path.join(OUTPUT_DIR, 'metrics.json')
 LC_PLOT = os.path.join(OUTPUT_DIR, 'learning_curves.png')
 ROC_PLOT = os.path.join(OUTPUT_DIR, 'roc_curve.png')
 
+print("\n--- Caricamento dati ---")
 # 1) Caricamento dati
 X, y, class_names = load_image_data(DATA_DIR, target_size=(64,64))
 
+print("\n Dati caricati!\n--- Splitting ---")
 # 2) Split
 X_train_val, X_test, y_train_val, y_test = train_test_split(
     X, y, test_size=0.2, stratify=y, random_state=42)
 X_train, X_val, y_train, y_val = train_test_split(
     X_train_val, y_train_val, test_size=0.25, stratify=y_train_val, random_state=42)
-
+print("\n --- Scaling ---")
 # 3) Scaling
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_val_scaled   = scaler.transform(X_val)
 X_test_scaled  = scaler.transform(X_test)
 
+print("\n --- Pesi di classe ---")
 # 4) Pesi di classe
 classes = np.unique(y_train)
 class_weights_dict = {
     cls: w for cls, w in zip(classes, compute_class_weight(class_weight='balanced', classes=classes, y=y_train))
 }
 
+print("\n --- Inizializzazione dei modelli ---")
 # 5) Modelli
 
 def get_models():
@@ -101,12 +105,14 @@ plot_and_save_learning_curves(models, X_train_scaled, y_train, LC_PLOT)
 
 # 7) Training finale e metriche
 
+print("\n --- Training finale e metriche ---")
 data_results = {}
 
 lb = LabelBinarizer()
 y_test_bin = lb.fit_transform(y_test)
 
 for name, model in models.items():
+    print(f"\nTraining {name}...")
     model_clone = clone(model)
     X_tv = np.vstack([X_train_scaled, X_val_scaled])
     y_tv = np.hstack([y_train, y_val])
@@ -141,7 +147,7 @@ for name, model in models.items():
     data_results[name] = metrics
 
 # 8) ROC plot
-
+print("\n --- Plot ROC Curves and Saving metrics ---")
 def plot_and_save_roc(data_results, output_path):
     plt.figure(figsize=(8,6))
     for name, m in data_results.items():
