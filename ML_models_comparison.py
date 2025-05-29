@@ -8,6 +8,7 @@ from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
+import xgboost
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              f1_score, roc_curve, auc)
 from torchvision import datasets, transforms
@@ -68,7 +69,7 @@ def get_models():
         'MLP': MLPClassifier(hidden_layer_sizes=(100,), max_iter=200, early_stopping=True, validation_fraction=0.2,
                              random_state=42),
         'RF': RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42),
-        'XGB': XGBClassifier(use_label_encoder=False, eval_metric='logloss', scale_pos_weight=1,  # set below
+        'XGB': XGBClassifier(use_label_encoder=False, eval_metric='logloss', callbacks=[early_stop], scale_pos_weight=1,  # set below
                              random_state=42)
     }
 
