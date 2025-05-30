@@ -1,174 +1,141 @@
 import os
-import json
 import numpy as np
+import pandas as pd
+from PIL import Image
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, learning_curve
-from sklearn.preprocessing import StandardScaler, LabelBinarizer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
-import xgboost
-from sklearn.metrics import (accuracy_score, precision_score, recall_score,
-                             f1_score, roc_curve, auc)
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.base import clone
+from sklearn.metrics import roc_curve, auc, classification_report, accuracy_score, precision_score, recall_score, f1_score
+import joblib
 
+# Configuration
+DATA_DIR = "./augmented_dataset"  # Root directory containing subfolders 'Mosquito' and 'Not_Mosquito'
+IMAGE_SIZE = (128, 128)  # Resize dimensions
+TEST_SIZE = 0.2
+RANDOM_STATE = 42
+METRICS_OUTPUT = "metrics_results.csv"
+MODELS_OUTPUT_DIR = "models"
 
-def load_image_data(data_dir, target_size=(64,64)):
-    transform = transforms.Compose([
-        transforms.Resize(target_size),
-        transforms.ToTensor(),
-    ])
-    dataset = datasets.ImageFolder(root=data_dir, transform=transform)
-    loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
-    X_tensor, y = next(iter(loader))
-    X = X_tensor.numpy()  # (N, C, H, W)
-    N, C, H, W = X.shape
-    X_flat = X.reshape(N, C * H * W)
-    return X_flat, np.array(y), dataset.classes
+# 1. Load and preprocess images
+def load_images(data_dir, image_size):
+    X = []
+    y = []
+    labels = os.listdir(data_dir)
+    for label in labels:
+        label_dir = os.path.join(data_dir, label)
+        if not os.path.isdir(label_dir):
+            continue
+        for fname in os.listdir(label_dir):
+            fpath = os.path.join(label_dir, fname)
+            try:
+                img = Image.open(fpath).convert('RGB')
+                img = img.resize(image_size)
+                arr = np.array(img).flatten()
+                X.append(arr)
+                y.append(label)
+            except Exception as e:
+                print(f"Error loading {fpath}: {e}")
+    return np.array(X), np.array(y)
 
+# Load data
+print("\n --- Loading images from dataset --- ")
+X, y = load_images(DATA_DIR, IMAGE_SIZE)
 
-# Percorsi e parametri
-DATA_DIR = 'path_to_dataset'
-OUTPUT_DIR = 'results'
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-METRICS_JSON = os.path.join(OUTPUT_DIR, 'metrics.json')
-LC_PLOT = os.path.join(OUTPUT_DIR, 'learning_curves.png')
-ROC_PLOT = os.path.join(OUTPUT_DIR, 'roc_curve.png')
+# Encode labels
+print("\n --- Encoding labels --- ")
+encoder = LabelEncoder()
+y_enc = encoder.fit_transform(y)
 
-print("\n--- Caricamento dati ---")
-# 1) Caricamento dati
-X, y, class_names = load_image_data(DATA_DIR, target_size=(64,64))
+# Split train/test
+print("\n --- Splitting dataset into train and test sets --- ")
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_enc, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y_enc
+)
 
-print("\n Dati caricati!\n--- Splitting ---")
-# 2) Split
-X_train_val, X_test, y_train_val, y_test = train_test_split(
-    X, y, test_size=0.2, stratify=y, random_state=42)
-X_train, X_val, y_train, y_val = train_test_split(
-    X_train_val, y_train_val, test_size=0.25, stratify=y_train_val, random_state=42)
-print("\n --- Scaling ---")
-# 3) Scaling
+# Standardize features
+print("\n --- Standardizing features --- ")
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_val_scaled   = scaler.transform(X_val)
-X_test_scaled  = scaler.transform(X_test)
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
-print("\n --- Pesi di classe ---")
-# 4) Pesi di classe
-classes = np.unique(y_train)
-class_weights_dict = {
-    cls: w for cls, w in zip(classes, compute_class_weight(class_weight='balanced', classes=classes, y=y_train))
-}
+# Ensure output dirs
+os.makedirs(MODELS_OUTPUT_DIR, exist_ok=True)
 
-print("\n --- Inizializzazione dei modelli ---")
-# 5) Modelli
-
+# 2. Define models
 def get_models():
-    early_stop = xgboost.callback.EarlyStopping(rounds=2, metric_name='logloss', data_name='validation_0', save_best=True)
-    return {
-        'SVC': SVC(kernel='rbf', probability=True, class_weight='balanced', random_state=42),
-        'MLP': MLPClassifier(hidden_layer_sizes=(100,), max_iter=200, early_stopping=True, validation_fraction=0.2,
-                             random_state=42),
-        'RF': RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42),
-        'XGB': XGBClassifier(use_label_encoder=False, eval_metric='logloss', callbacks=[early_stop], scale_pos_weight=1,  # set below
-                             random_state=42)
+    models = {
+        'SVC': SVC(probability=True, random_state=RANDOM_STATE, kernel='linear', verbose=True),
+        'MLP': MLPClassifier(random_state=RANDOM_STATE, early_stopping=True, max_iter=500, learning_rate='adaptive', verbose=True),
+        'RandomForest': RandomForestClassifier(random_state=RANDOM_STATE, verbose=True),
+        'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_STATE, device='cuda', verbosity=1, early_stopping_rounds=10)
     }
+    return models
 
 models = get_models()
 
-# 6) Learning Curves
-
-def plot_and_save_learning_curves(models, X, y, output_path):
-    plt.figure(figsize=(12,8))
-    for name, model in models.items():
-        model_clone = clone(model)
-        train_sizes, train_scores, val_scores = learning_curve(
-            model_clone, X, y, cv=5, train_sizes=np.linspace(0.1,1.0,5),
-            scoring='accuracy', n_jobs=-1)
-        train_mean = np.mean(train_scores, axis=1)
-        val_mean = np.mean(val_scores, axis=1)
-        plt.plot(train_sizes, train_mean, label=f'{name} Train')
-        plt.plot(train_sizes, val_mean, '--', label=f'{name} Val')
-    plt.title('Learning Curves')
-    plt.xlabel('Training examples')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
-
-plot_and_save_learning_curves(models, X_train_scaled, y_train, LC_PLOT)
-
-# 7) Training finale e metriche
-
-print("\n --- Training finale e metriche ---")
-data_results = {}
-
-lb = LabelBinarizer()
-y_test_bin = lb.fit_transform(y_test)
+# 3. Train, evaluate, and collect metrics
+print("\n --- Training and evaluating models --- ")
+metrics_list = []
+plt.figure(figsize=(10, 8))
 
 for name, model in models.items():
-    print(f"\nTraining {name}...")
-    model_clone = clone(model)
-    X_tv = np.vstack([X_train_scaled, X_val_scaled])
-    y_tv = np.hstack([y_train, y_val])
+    print(f"Training {name}...")
+    model.fit(X_train, y_train)
+    # Save model
+    joblib.dump(model, os.path.join(MODELS_OUTPUT_DIR, f"{name}.joblib"))
 
-    if name == 'XGB':
-        # For binary classification adjust scale_pos_weight
-        if len(classes) == 2:
-            scale_pos_weight = class_weights_dict[1] / class_weights_dict[0]
-            model_clone.set_params(scale_pos_weight=scale_pos_weight)
+    # Predictions and probabilities
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
 
-    model_clone.fit(X_tv, y_tv)
+    # Classification metrics
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
 
-    y_pred = model_clone.predict(X_test_scaled)
-    y_proba = model_clone.predict_proba(X_test_scaled)
+    # ROC and AUC
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, label=f"{name} (AUC = {roc_auc:.2f})")
 
-    metrics = {
-        'accuracy': accuracy_score(y_test, y_pred),
-        'precision': precision_score(y_test, y_pred, average='weighted'),
-        'recall': recall_score(y_test, y_pred, average='weighted'),
-        'f1': f1_score(y_test, y_pred, average='weighted')
-    }
+    # Log metrics
+    metrics_list.append({
+        'Model': name,
+        'Accuracy': acc,
+        'Precision': prec,
+        'Recall': rec,
+        'F1': f1,
+        'AUC': roc_auc
+    })
 
-    if y_proba.ndim == 2 and y_proba.shape[1] == 2:
-        fpr, tpr, _ = roc_curve(y_test, y_proba[:,1])
-        roc_auc = auc(fpr, tpr)
-        metrics.update({'fpr': fpr.tolist(), 'tpr': tpr.tolist(), 'auc': roc_auc})
-    else:
-        fpr, tpr, _ = roc_curve(y_test_bin.ravel(), y_proba.ravel())
-        roc_auc = auc(fpr, tpr)
-        metrics.update({'auc_macro': roc_auc})
+# Plot ROC
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc='lower right')
+plt.show()
 
-    data_results[name] = metrics
+# 4. Save metrics to CSV
+metrics_df = pd.DataFrame(metrics_list)
+metrics_df.to_csv(METRICS_OUTPUT, index=False)
+print(f"Metrics saved to {METRICS_OUTPUT}")
 
-# 8) ROC plot
-print("\n --- Plot ROC Curves and Saving metrics ---")
-def plot_and_save_roc(data_results, output_path):
-    plt.figure(figsize=(8,6))
-    for name, m in data_results.items():
-        if 'fpr' in m:
-            plt.plot(m['fpr'], m['tpr'], label=f"{name} (AUC {m['auc']:.3f})")
-    plt.plot([0,1],[0,1],'k--')
-    plt.title('ROC Curves')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+# 5. Detailed classification report saved
+def save_reports(models, X_test, y_test, encoder, output_dir="reports"):
+    os.makedirs(output_dir, exist_ok=True)
+    for name, model in models.items():
+        y_pred = model.predict(X_test)
+        report = classification_report(y_test, y_pred, target_names=encoder.classes_)
+        with open(os.path.join(output_dir, f"report_{name}.txt"), 'w') as f:
+            f.write(report)
 
-plot_and_save_roc(data_results, ROC_PLOT)
-
-# 9) Save metrics
-with open(METRICS_JSON, 'w') as f:
-    json.dump(data_results, f, indent=4)
-
-print(f"Saved learning curves to {LC_PLOT}")
-print(f"Saved ROC curves to {ROC_PLOT}")
-print(f"Saved metrics to {METRICS_JSON}")
+save_reports(models, X_test, y_test, encoder)
+print("Classification reports saved in 'reports/' directory")
