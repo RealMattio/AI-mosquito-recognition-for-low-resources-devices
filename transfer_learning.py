@@ -9,6 +9,10 @@ import os
 import copy
 import numpy as np
 from PIL import Image
+import torch
+import json
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
+from sklearn.preprocessing import label_binarize
 
 class CustomTensorDataset(Dataset):
     """Dataset personalizzato per dati e etichette in memoria (NumPy/Tensor)."""
@@ -217,71 +221,118 @@ MobileNetV2: 0.8674
 '''
 def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_classes=2,
                               batch_size=32, need_resize=True, need_normalize=True, device=None,
-                              output_json='test_results.json'):
+                              output_json='test_results.json', roc_plot_path='roc_curves.png'):
     """
-    Carica tutti i modelli salvati in models_dir, valuta su X_test e y_test, e salva le prestazioni in JSON.
+    Carica tutti i modelli salvati in models_dir, valuta su X_test e y_test,
+    calcola le metriche di classificazione (accuracy, precision, recall, f1), ROC e AUC,
+    e salva le prestazioni in JSON e le curve ROC in un file PNG.
     """
-    # Device
+
     device = device or (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
 
-    # Preprocessing: stessa pipeline di validation
     transforms_list = []
     if need_resize:
         transforms_list.append(transforms.Resize((224, 224)))
     transforms_list.append(transforms.ToTensor())
     if need_normalize:
-        transforms_list.append(transforms.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]))
+        transforms_list.append(transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
     test_transform = transforms.Compose(transforms_list)
 
-    # Dataset e DataLoader
     test_dataset = CustomTensorDataset(X_test, y_test, transform=test_transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     results = {}
+    all_fpr, all_tpr = {}, {}
+    y_true_all = []
+    y_prob_all = {}
 
-    # Trova tutti i file .pth
     for filename in os.listdir(models_dir):
         if filename.endswith('.pth'):
             model_name = filename[:-4]
-            # Recupera struttura e accuracy dal nome file (es. ResNet18_0.9123)
             if '_' in model_name:
                 name, acc_str = model_name.rsplit('_', 1)
             else:
                 name, acc_str = model_name, ''
 
-            # Costruisci modello
-            model = None
             try:
-                model = TransferLearning(None,None,None,None, num_classes=num_classes).get_model(name, num_classes)
-                # Carica pesi
+                model = TransferLearning(None, None, None, None, num_classes=num_classes).get_model(name, num_classes)
                 path = os.path.join(models_dir, filename)
                 model.load_state_dict(torch.load(path, map_location=device))
                 model.to(device)
                 model.eval()
 
-                # Valutazione sul test set
-                running_corrects = 0
-                total = 0
+                y_true = []
+                y_pred = []
+                y_probs = []
+
                 with torch.no_grad():
                     for inputs, labels in test_loader:
                         inputs, labels = inputs.to(device), labels.to(device)
                         outputs = model(inputs)
-                        _, preds = torch.max(outputs, 1)
-                        running_corrects += torch.sum(preds == labels.data)
-                        total += labels.size(0)
-                test_acc = (running_corrects.double() / total).item()
+                        probs = torch.softmax(outputs, dim=1)
+                        _, predicted = torch.max(probs, 1)
 
-                results[name] = {
+                        y_true.extend(labels.cpu().numpy())
+                        y_pred.extend(predicted.cpu().numpy())
+                        y_probs.extend(probs.cpu().numpy())
+
+                y_true_np = np.array(y_true)
+                y_pred_np = np.array(y_pred)
+                y_probs_np = np.array(y_probs)
+
+                acc = accuracy_score(y_true_np, y_pred_np)
+                prec = precision_score(y_true_np, y_pred_np, average='weighted')
+                rec = recall_score(y_true_np, y_pred_np, average='weighted')
+                f1 = f1_score(y_true_np, y_pred_np, average='weighted')
+
+                model_results = {
                     'filename': filename,
                     'loaded_accuracy': float(acc_str) if acc_str else None,
-                    'test_accuracy': test_acc
+                    'test_accuracy': acc,
+                    'precision': prec,
+                    'recall': rec,
+                    'f1_score': f1
                 }
+
+                # ROC and AUC
+                y_true_bin = label_binarize(y_true_np, classes=np.arange(num_classes))
+                if num_classes == 2:
+                    fpr, tpr, _ = roc_curve(y_true_np, y_probs_np[:, 1])
+                    model_results['roc_auc'] = auc(fpr, tpr)
+                    all_fpr[name] = fpr
+                    all_tpr[name] = tpr
+                else:
+                    fpr = dict()
+                    tpr = dict()
+                    roc_auc = dict()
+                    for i in range(num_classes):
+                        fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_probs_np[:, i])
+                        roc_auc[i] = auc(fpr[i], tpr[i])
+                    model_results['roc_auc'] = roc_auc
+
+                results[name] = model_results
+
             except Exception as e:
                 print(f"Errore caricando {filename}: {e}")
 
-    # Salvataggio in JSON
-    import json
     with open(output_json, 'w') as f:
         json.dump(results, f, indent=4)
     print(f"Risultati di test salvati in {output_json}")
+
+    # Salva curva ROC (solo per binario)
+    if num_classes == 2:
+        plt.figure(figsize=(8,6))
+        for name in all_fpr:
+            plt.plot(all_fpr[name], all_tpr[name], label=f"{name} (AUC = {results[name]['roc_auc']:.2f})")
+        plt.plot([0, 1], [0, 1], 'k--')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curves')
+        plt.legend()
+        plt.grid()
+        plt.tight_layout()
+        plt.savefig(roc_plot_path)
+        plt.close()
+        print(f"Curve ROC salvate in {roc_plot_path}")
+
     return results

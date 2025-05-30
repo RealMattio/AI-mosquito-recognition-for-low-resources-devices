@@ -18,7 +18,7 @@ def main():
     #print("Processo di transfer learning completato.")
     #transfer_learning.show_training_results()
 
-    results = evaluate_and_save_results(X_test, y_test, need_normalize=False, need_resize=False)
+    results = evaluate_and_save_results(X_test, y_test, need_normalize=False, need_resize=False, output_json="test_results_2.json")
     print("Processo di valutazione e salvataggio dei risultati completato.")
     print("Risultati:", results)
 
