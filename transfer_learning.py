@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import models, transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, TensorDataset
 import matplotlib.pyplot as plt
 import time
 import os
@@ -13,6 +13,11 @@ import torch
 import json
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 from sklearn.preprocessing import label_binarize
+from sklearn.utils.multiclass import unique_labels
+import json
+import joblib
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 class CustomTensorDataset(Dataset):
     """Dataset personalizzato per dati e etichette in memoria (NumPy/Tensor)."""
@@ -221,7 +226,7 @@ MobileNetV2: 0.8674
 '''
 def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_classes=2,
                               batch_size=32, need_resize=True, need_normalize=True, device=None,
-                              output_json='test_results.json', roc_plot_path='roc_curves.png'):
+                              output_json='test_results.json', roc_plot_path='roc_curves.png', label_map=None):
     """
     Carica tutti i modelli salvati in models_dir, valuta su X_test e y_test,
     calcola le metriche di classificazione (accuracy, precision, recall, f1), ROC e AUC,
@@ -284,6 +289,17 @@ def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_cla
                 prec = precision_score(y_true_np, y_pred_np, average='weighted')
                 rec = recall_score(y_true_np, y_pred_np, average='weighted')
                 f1 = f1_score(y_true_np, y_pred_np, average='weighted')
+                class_labels = unique_labels(y_true_np, y_pred_np)
+                f1_per_class = f1_score(y_true_np, y_pred_np, average=None)
+
+                # Usa i nomi reali, es: Mosquito / Not_Mosquito (devi passarli, vedi nota sotto)
+                f1_per_class_dict = {
+                    label_map[int(class_idx)] if label_map else str(class_idx): float(score)
+                    for class_idx, score in zip(class_labels, f1_per_class)
+                }
+
+                #model_results['f1_per_class'] = f1_per_class_dict
+
 
                 model_results = {
                     'filename': filename,
@@ -291,7 +307,8 @@ def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_cla
                     'test_accuracy': acc,
                     'precision': prec,
                     'recall': rec,
-                    'f1_score': f1
+                    'f1_score': f1,
+                    'f1_per_class': f1_per_class_dict
                 }
 
                 # ROC and AUC
@@ -336,3 +353,255 @@ def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_cla
         print(f"Curve ROC salvate in {roc_plot_path}")
 
     return results
+
+
+def evaluate_sklearn_model(model_original, X_train, y_train, X_val, y_val):
+    """
+    Riaddestra un modello scikit-learn con gli stessi iperparametri,
+    lo valuta su validation set e restituisce il modello riaddestrato
+    più un dizionario con le metriche (accuracy, precision, recall, f1, f1_per_class).
+    """
+    model_class = type(model_original)
+    model_params = model_original.get_params()
+    print(f"Riaddestro modello {model_class.__name__} con parametri: {model_params}")
+    
+    # Ricrea e riaddestra
+    model = model_class(**model_params)
+    model.fit(X_train, y_train)
+    
+    # Predizioni su validation
+    y_pred = model.predict(X_val)
+    
+    # Metriche globali (weighted)
+    acc = accuracy_score(y_val, y_pred)
+    prec = precision_score(y_val, y_pred, average='weighted', zero_division=0)
+    rec = recall_score(y_val, y_pred, average='weighted', zero_division=0)
+    f1_w = f1_score(y_val, y_pred, average='weighted', zero_division=0)
+    
+    # F1 per classe (array di lunghezza num_classes)
+    f1_per_class_arr = f1_score(y_val, y_pred, average=None, zero_division=0)
+    # Mappiamo "class_0", "class_1", ...
+    f1_per_class = {
+        f"class_{i}": float(score) 
+        for i, score in enumerate(f1_per_class_arr)
+    }
+    
+    metrics = {
+        "accuracy": float(acc),
+        "precision": float(prec),
+        "recall": float(rec),
+        "f1_score": float(f1_w),
+        "f1_per_class": f1_per_class
+    }
+    return model, metrics
+
+def evaluate_transfer_model(model, X_train, y_train, X_val, y_val, device, epochs=3, batch_size=32):
+    """
+    Riaddestra solo l'ultimo strato di un modello PyTorch (transfer learning),
+    lo valuta su validation set e restituisce il modello riaddestrato
+    più un dizionario con le metriche (accuracy, precision, recall, f1, f1_per_class).
+    """
+    model = model.to(device)
+    model.train()
+
+    # Congela tutti i parametri tranne il classificatore finale
+    for param in model.parameters():
+        param.requires_grad = False
+    if hasattr(model, 'fc'):
+        for p in model.fc.parameters():
+            p.requires_grad = True
+        classifier = model.fc
+    elif hasattr(model, 'classifier'):
+        for p in model.classifier.parameters():
+            p.requires_grad = True
+        classifier = model.classifier
+    else:
+        raise ValueError("Modello non compatibile: nessun attributo 'fc' o 'classifier' trovato")
+
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+
+    train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(TensorDataset(X_val, y_val), batch_size=batch_size, shuffle=False)
+
+    for epoch in range(epochs):
+        for xb, yb in train_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            optimizer.zero_grad()
+            outputs = model(xb)
+            loss = criterion(outputs, yb)
+            loss.backward()
+            optimizer.step()
+
+    # Valutazione su validation
+    model.eval()
+    all_preds = []
+    all_labels = []
+    with torch.no_grad():
+        for xb, yb in val_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            outputs = model(xb)
+            preds = outputs.argmax(dim=1)
+            all_preds.append(preds.cpu().numpy())
+            all_labels.append(yb.cpu().numpy())
+
+    y_pred = np.concatenate(all_preds)
+    y_true = np.concatenate(all_labels)
+
+    # Metriche globali (weighted)
+    acc = accuracy_score(y_true, y_pred)
+    prec = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    rec = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1_w = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+
+    # F1 per classe
+    f1_per_class_arr = f1_score(y_true, y_pred, average=None, zero_division=0)
+    f1_per_class = {
+        f"class_{i}": float(score)
+        for i, score in enumerate(f1_per_class_arr)
+    }
+
+    metrics = {
+        "accuracy": float(acc),
+        "precision": float(prec),
+        "recall": float(rec),
+        "f1_score": float(f1_w),
+        "f1_per_class": f1_per_class
+    }
+    return model, metrics
+
+
+
+def generate_learning_curves(
+    X_train_full, y_train_full,
+    X_val, y_val,
+    sklearn_models_dir,
+    pytorch_models_dir,
+    get_transfer_model,
+    output_plot_path='learning_curves.png',
+    output_metrics_path='learning_curve_metrics.json',
+    output_models_dir='retrained_models'
+):
+    """
+    Riaddestra progressivamente modelli scikit-learn e PyTorch (transfer learning),
+    calcola per ogni frazione di training set le metriche (accuracy, precision, recall, f1 weighted, f1 per classe),
+    salva i modelli riaddestrati completi, salva il plot delle accuracy, e scrive tutte le metriche in JSON.
+
+    Parametri:
+        X_train_full  : array-like (N_train × features), train set completo
+        y_train_full  : array-like (N_train,), etichette del train set
+        X_val         : array-like (N_val × features), validation set fisso
+        y_val         : array-like (N_val,), etichette del validation set
+        sklearn_models_dir  : path alla cartella con modelli .joblib da riaddestrare
+        pytorch_models_dir  : path alla cartella con modelli .pth (transfer learning)
+        get_transfer_model  : funzione lambda(name, num_classes) → modello PyTorch con classificatore reinizializzato
+        output_plot_path    : path per salvare il grafico delle sole accuracy curve
+        output_metrics_path : path per salvare il JSON con tutte le metriche
+        output_models_dir   : cartella dove salvare i modelli riaddestrati (100% train)
+    """
+    os.makedirs(output_models_dir, exist_ok=True)
+
+    X_train_full = np.array(X_train_full)
+    y_train_full = np.array(y_train_full)
+    X_val = np.array(X_val)
+    y_val = np.array(y_val)
+
+    # Percentuali di training set da usare (ad es. 10%, 32%, 55%, 77%, 100%)
+    train_sizes = np.linspace(0.1, 1.0, 5)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Dizionario per raccogliere tutte le metriche
+    metrics_all = {}
+
+    # 1) Modelli scikit-learn
+    for fname in os.listdir(sklearn_models_dir):
+        if not fname.endswith(".joblib"):
+            continue
+        model_path = os.path.join(sklearn_models_dir, fname)
+        model_original = joblib.load(model_path)
+        name = fname.replace(".joblib", "")
+        print(f"\n[Sklearn] Processing: {name}")
+
+        metrics_all[name] = {}
+        accuracy_curve = []
+
+        for frac in train_sizes:
+            pct_label = f"{int(frac * 100)}%"
+            n_samples = int(len(X_train_full) * frac)
+            X_sub = X_train_full[:n_samples]
+            y_sub = y_train_full[:n_samples]
+
+            model, metrics = evaluate_sklearn_model(
+                model_original, X_sub, y_sub, X_val, y_val
+            )
+            metrics_all[name][pct_label] = metrics
+            accuracy_curve.append(metrics["accuracy"])
+
+            # Salva il modello completo solo quando frac == 1.0
+            if frac == 1.0:
+                out_path = os.path.join(output_models_dir, f"{name}_retrained.joblib")
+                joblib.dump(model, out_path)
+
+        # Conserva la curva di accuracy per il plot
+        metrics_all[name]["_accuracy_curve"] = accuracy_curve
+
+    # 2) Modelli PyTorch (transfer learning)
+    for fname in os.listdir(pytorch_models_dir):
+        if not fname.endswith(".pth"):
+            continue
+        name = fname.replace(".pth", "")
+        print(f"\n[PyTorch] Processing: {name}")
+
+        metrics_all[name] = {}
+        accuracy_curve = []
+
+        for frac in train_sizes:
+            pct_label = f"{int(frac * 100)}%"
+            n_samples = int(len(X_train_full) * frac)
+            X_sub = X_train_full[:n_samples]
+            y_sub = y_train_full[:n_samples]
+
+            X_tensor = torch.tensor(X_sub, dtype=torch.float32)
+            y_tensor = torch.tensor(y_sub, dtype=torch.long)
+            X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
+            y_val_tensor = torch.tensor(y_val, dtype=torch.long)
+
+            model = get_transfer_model(name, num_classes=2)
+            model, metrics = evaluate_transfer_model(
+                model, X_tensor, y_tensor, X_val_tensor, y_val_tensor, device
+            )
+            metrics_all[name][pct_label] = metrics
+            accuracy_curve.append(metrics["accuracy"])
+
+            # Salva il modello completo solo quando frac == 1.0
+            if frac == 1.0:
+                out_path = os.path.join(output_models_dir, f"{name}_retrained.pth")
+                torch.save(model.state_dict(), out_path)
+
+        metrics_all[name]["_accuracy_curve"] = accuracy_curve
+
+    # 3) Salvataggio del grafico delle only-accuracy curves
+    plt.figure(figsize=(10, 7))
+    for name, data in metrics_all.items():
+        curve = data["_accuracy_curve"]
+        plt.plot(train_sizes * 100, curve, label=name)
+    plt.xlabel('Training set size (%)')
+    plt.ylabel('Validation Accuracy')
+    plt.title('Learning Curves (Accuracy)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(output_plot_path)
+    plt.close()
+    print(f"\n✅ Grafico salvato in: {output_plot_path}")
+
+    # Rimuoviamo le curve _accuracy_curve prima di salvare il JSON
+    for name in metrics_all:
+        del metrics_all[name]["_accuracy_curve"]
+
+    # 4) Salvataggio di tutte le metriche in JSON
+    with open(output_metrics_path, 'w') as f:
+        json.dump(metrics_all, f, indent=4)
+    print(f"✅ Metriche complete salvate in: {output_metrics_path}")
+
+    return metrics_all
