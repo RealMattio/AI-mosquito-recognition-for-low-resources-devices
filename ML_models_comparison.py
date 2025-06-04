@@ -68,26 +68,40 @@ os.makedirs(MODELS_OUTPUT_DIR, exist_ok=True)
 # 2. Define models
 def get_models():
     models = {
-        'SVC': SVC(probability=True, random_state=RANDOM_STATE, kernel='linear', verbose=True, max_iter=15),
-        #'MLP': MLPClassifier(random_state=RANDOM_STATE, early_stopping=True, max_iter=100, learning_rate='adaptive', verbose=True),
-        #'RandomForest': RandomForestClassifier(random_state=RANDOM_STATE, verbose=True),
-        #'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_STATE, device='cuda', verbosity=1, early_stopping_rounds=10)
+        'SVC': SVC(probability=True, random_state=RANDOM_STATE, class_weight='balanced', kernel='linear', max_iter=1000 , verbose=True),
+        'MLP': MLPClassifier(random_state=RANDOM_STATE, early_stopping=True, max_iter=500, learning_rate='adaptive', verbose=True),
+        'RandomForest': RandomForestClassifier(random_state=RANDOM_STATE, verbose=True),
+        'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_STATE, device='cuda', verbosity=1, early_stopping_rounds=10)
     }
     return models
 
-models = get_models()
 
+models = get_models()
+""" 
 # 3. Train, evaluate, and collect metrics
 print("\n --- Training and evaluating models --- ")
 metrics_list = []
 plt.figure(figsize=(10, 8))
 
 for name, model in models.items():
+    ''' 
     print(f"Training {name}...")
-    model.fit(X_train, y_train)
+    if name == 'XGBoost':
+        model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=True)
+    else:
+        model.fit(X_train, y_train)
     # Save model
     joblib.dump(model, os.path.join(MODELS_OUTPUT_DIR, f"{name}.joblib"))
+    '''
+    # load pre-trained model if exists
+    model_path = os.path.join(MODELS_OUTPUT_DIR, f"{name}.joblib")
+    if os.path.exists(model_path):
+        print(f"Loading pre-trained model for {name}...")
+        model = joblib.load(model_path)
+    else:
+        raise FileNotFoundError(f"Model file {model_path} does not exist. Please train the model first.")
 
+    print(f"\n --- Evaluating {name} ---")
     # Predictions and probabilities
     y_pred = model.predict(X_test)
     y_prob = model.predict_proba(X_test)[:, 1]
@@ -127,11 +141,19 @@ plt.show()
 metrics_df = pd.DataFrame(metrics_list)
 metrics_df.to_csv(METRICS_OUTPUT, index=False)
 print(f"Metrics saved to {METRICS_OUTPUT}")
-
+ """
 # 5. Detailed classification report saved
 def save_reports(models, X_test, y_test, encoder, output_dir="reports"):
     os.makedirs(output_dir, exist_ok=True)
     for name, model in models.items():
+        # load pre-trained model if exists
+        model_path = os.path.join(MODELS_OUTPUT_DIR, f"{name}.joblib")
+        if os.path.exists(model_path):
+            print(f"Loading pre-trained model for {name}...")
+            model = joblib.load(model_path)
+        else:
+            raise FileNotFoundError(f"Model file {model_path} does not exist. Please train the model first.")
+
         y_pred = model.predict(X_test)
         report = classification_report(y_test, y_pred, target_names=encoder.classes_)
         with open(os.path.join(output_dir, f"report_{name}.txt"), 'w') as f:
