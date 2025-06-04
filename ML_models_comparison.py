@@ -68,10 +68,10 @@ os.makedirs(MODELS_OUTPUT_DIR, exist_ok=True)
 # 2. Define models
 def get_models():
     models = {
-        'SVC': SVC(probability=True, random_state=RANDOM_STATE, kernel='linear', verbose=True),
-        'MLP': MLPClassifier(random_state=RANDOM_STATE, early_stopping=True, max_iter=500, learning_rate='adaptive', verbose=True),
-        'RandomForest': RandomForestClassifier(random_state=RANDOM_STATE, verbose=True),
-        'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_STATE, device='cuda', verbosity=1, early_stopping_rounds=10)
+        'SVC': SVC(probability=True, random_state=RANDOM_STATE, kernel='linear', verbose=True, max_iter=15),
+        #'MLP': MLPClassifier(random_state=RANDOM_STATE, early_stopping=True, max_iter=100, learning_rate='adaptive', verbose=True),
+        #'RandomForest': RandomForestClassifier(random_state=RANDOM_STATE, verbose=True),
+        #'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_STATE, device='cuda', verbosity=1, early_stopping_rounds=10)
     }
     return models
 
