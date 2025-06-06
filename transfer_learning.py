@@ -12,7 +12,7 @@ from PIL import Image
 import torch
 import json
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
-from sklearn.preprocessing import label_binarize
+from sklearn.preprocessing import label_binarize, LabelEncoder
 from sklearn.utils.multiclass import unique_labels
 import json
 import joblib
@@ -358,31 +358,35 @@ def evaluate_and_save_results(X_test, y_test, models_dir='saved_models', num_cla
 def evaluate_sklearn_model(model_original, X_train, y_train, X_val, y_val):
     """
     Riaddestra un modello scikit-learn con gli stessi iperparametri,
-    lo valuta su validation set e restituisce il modello riaddestrato
-    più un dizionario con le metriche (accuracy, precision, recall, f1, f1_per_class).
+    valuta su (X_val, y_val) e restituisce:
+      - il modello riaddestrato
+      - metrics: dict con accuracy, precision, recall, f1_weighted, f1_per_class
     """
-    model_class = type(model_original)
-    model_params = model_original.get_params()
-    print(f"Riaddestro modello {model_class.__name__} con parametri: {model_params}")
+    from copy import deepcopy
     
-    # Ricrea e riaddestra
-    model = model_class(**model_params)
-    model.fit(X_train, y_train)
+    model_class = type(model_original)
+    params = model_original.get_params()
+    print(f"  [sklearn] Riaddestro {model_class.__name__} con params: {params}")
+    
+    # Crea nuova istanza e riaddestra su X_train
+    model = model_class(**params)
+    if model_class.__name__ == "XGBClassifier":
+        model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=True)
+    else:
+        # Per altri modelli, non serve eval_set     
+        model.fit(X_train, y_train)
     
     # Predizioni su validation
     y_pred = model.predict(X_val)
     
-    # Metriche globali (weighted)
     acc = accuracy_score(y_val, y_pred)
-    prec = precision_score(y_val, y_pred, average='weighted', zero_division=0)
-    rec = recall_score(y_val, y_pred, average='weighted', zero_division=0)
-    f1_w = f1_score(y_val, y_pred, average='weighted', zero_division=0)
+    prec = precision_score(y_val, y_pred, average="weighted", zero_division=0)
+    rec = recall_score(y_val, y_pred, average="weighted", zero_division=0)
+    f1_w = f1_score(y_val, y_pred, average="weighted", zero_division=0)
     
-    # F1 per classe (array di lunghezza num_classes)
     f1_per_class_arr = f1_score(y_val, y_pred, average=None, zero_division=0)
-    # Mappiamo "class_0", "class_1", ...
     f1_per_class = {
-        f"class_{i}": float(score) 
+        f"class_{i}": float(score)
         for i, score in enumerate(f1_per_class_arr)
     }
     
@@ -390,89 +394,93 @@ def evaluate_sklearn_model(model_original, X_train, y_train, X_val, y_val):
         "accuracy": float(acc),
         "precision": float(prec),
         "recall": float(rec),
-        "f1_score": float(f1_w),
-        "f1_per_class": f1_per_class
+        "f1_weighted": float(f1_w),
+        "f1_per_class": f1_per_class,
     }
     return model, metrics
 
-def evaluate_transfer_model(model, X_train, y_train, X_val, y_val, device, epochs=3, batch_size=32):
+def evaluate_transfer_model(
+    model, train_dataset, val_dataset, device, epochs=3, batch_size=32
+):
     """
     Riaddestra solo l'ultimo strato di un modello PyTorch (transfer learning),
-    lo valuta su validation set e restituisce il modello riaddestrato
-    più un dizionario con le metriche (accuracy, precision, recall, f1, f1_per_class).
+    utilizzando train_dataset (Dataset PyTorch) e val_dataset.
+    Restituisce:
+      - il modello riaddestrato
+      - metrics: dict con accuracy, precision, recall, f1_weighted, f1_per_class
     """
-    model = model.to(device)
-    model.train()
-
-    # Congela tutti i parametri tranne il classificatore finale
+    # Congela tutti i parametri
     for param in model.parameters():
         param.requires_grad = False
-    if hasattr(model, 'fc'):
+    
+    # Individua l'ultimo classificatore (fc o classifier)
+    if hasattr(model, "fc"):
         for p in model.fc.parameters():
             p.requires_grad = True
         classifier = model.fc
-    elif hasattr(model, 'classifier'):
+    elif hasattr(model, "classifier"):
         for p in model.classifier.parameters():
             p.requires_grad = True
         classifier = model.classifier
     else:
         raise ValueError("Modello non compatibile: nessun attributo 'fc' o 'classifier' trovato")
-
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=0.001)
+    
+    model = model.to(device)
     criterion = nn.CrossEntropyLoss()
-
-    train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(TensorDataset(X_val, y_val), batch_size=batch_size, shuffle=False)
-
-    for epoch in range(epochs):
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
+    # Ciclo di training solo sul classificatore finale
+    model.train()
+    for _ in range(epochs):
         for xb, yb in train_loader:
             xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
-            outputs = model(xb)
-            loss = criterion(outputs, yb)
+            out = model(xb)
+            loss = criterion(out, yb)
             loss.backward()
             optimizer.step()
-
-    # Valutazione su validation
+    
+    # Valutazione
     model.eval()
     all_preds = []
     all_labels = []
     with torch.no_grad():
         for xb, yb in val_loader:
             xb, yb = xb.to(device), yb.to(device)
-            outputs = model(xb)
-            preds = outputs.argmax(dim=1)
+            out = model(xb)
+            preds = out.argmax(dim=1)
             all_preds.append(preds.cpu().numpy())
             all_labels.append(yb.cpu().numpy())
-
+    
     y_pred = np.concatenate(all_preds)
     y_true = np.concatenate(all_labels)
-
-    # Metriche globali (weighted)
+    
     acc = accuracy_score(y_true, y_pred)
-    prec = precision_score(y_true, y_pred, average='weighted', zero_division=0)
-    rec = recall_score(y_true, y_pred, average='weighted', zero_division=0)
-    f1_w = f1_score(y_true, y_pred, average='weighted', zero_division=0)
-
-    # F1 per classe
+    prec = precision_score(y_true, y_pred, average="weighted", zero_division=0)
+    rec = recall_score(y_true, y_pred, average="weighted", zero_division=0)
+    f1_w = f1_score(y_true, y_pred, average="weighted", zero_division=0)
+    
     f1_per_class_arr = f1_score(y_true, y_pred, average=None, zero_division=0)
     f1_per_class = {
-        f"class_{i}": float(score)
-        for i, score in enumerate(f1_per_class_arr)
+        f"class_{i}": float(score) for i, score in enumerate(f1_per_class_arr)
     }
-
+    
     metrics = {
         "accuracy": float(acc),
         "precision": float(prec),
         "recall": float(rec),
-        "f1_score": float(f1_w),
-        "f1_per_class": f1_per_class
+        "f1_weighted": float(f1_w),
+        "f1_per_class": f1_per_class,
     }
     return model, metrics
 
 
-
 def generate_learning_curves(
+    X_flat_train, y_flat_train,
+    X_flat_val, y_flat_val,
     X_train_full, y_train_full,
     X_val, y_val,
     sklearn_models_dir,
@@ -519,31 +527,29 @@ def generate_learning_curves(
             continue
         model_path = os.path.join(sklearn_models_dir, fname)
         model_original = joblib.load(model_path)
-        name = fname.replace(".joblib", "")
-        print(f"\n[Sklearn] Processing: {name}")
+        model_name = fname.replace(".joblib", "")
+        print(f"\n[SKLEARN] Processing: {model_name}")
 
-        metrics_all[name] = {}
-        accuracy_curve = []
+        metrics_all[model_name] = {}
+        acc_curve = []
 
         for frac in train_sizes:
-            pct_label = f"{int(frac * 100)}%"
-            n_samples = int(len(X_train_full) * frac)
-            X_sub = X_train_full[:n_samples]
-            y_sub = y_train_full[:n_samples]
+            pct_label = f"{int(frac*100)}%"
+            n = int(len(X_flat_train) * frac)
+            X_sub = X_flat_train[:n]
+            y_sub = y_flat_train[:n]
 
             model, metrics = evaluate_sklearn_model(
-                model_original, X_sub, y_sub, X_val, y_val
+                model_original, X_sub, y_sub, X_flat_val, y_flat_val
             )
-            metrics_all[name][pct_label] = metrics
-            accuracy_curve.append(metrics["accuracy"])
+            metrics_all[model_name][pct_label] = metrics
+            acc_curve.append(metrics["accuracy"])
 
-            # Salva il modello completo solo quando frac == 1.0
             if frac == 1.0:
-                out_path = os.path.join(output_models_dir, f"{name}_retrained.joblib")
+                out_path = os.path.join(output_models_dir, f"{model_name}_retrained.joblib")
                 joblib.dump(model, out_path)
 
-        # Conserva la curva di accuracy per il plot
-        metrics_all[name]["_accuracy_curve"] = accuracy_curve
+        metrics_all[model_name]["_accuracy_curve"] = acc_curve
 
     # 2) Modelli PyTorch (transfer learning)
     for fname in os.listdir(pytorch_models_dir):
@@ -605,3 +611,39 @@ def generate_learning_curves(
     print(f"✅ Metriche complete salvate in: {output_metrics_path}")
 
     return metrics_all
+
+
+def load_dataset(data_dir, image_size=(128, 128)):
+    """
+    Scorre le sottocartelle di `data_dir` (una per ciascuna label),
+    estrae:
+      - X_flat: array NumPy (N × (H*W*3)) con immagini resize & flatten
+      - file_paths: lista di path assoluti alle immagini (per PyTorch)
+      - y: array di etichette numeriche
+      - encoder: LabelEncoder per convertire nome_label ↔ indice
+    """
+    flat_list = []
+    paths_list = []
+    labels_list = []
+    
+    for label in sorted(os.listdir(data_dir)):
+        label_dir = os.path.join(data_dir, label)
+        if not os.path.isdir(label_dir):
+            continue
+        for fname in os.listdir(label_dir):
+            fpath = os.path.join(label_dir, fname)
+            try:
+                img = Image.open(fpath).convert("RGB")
+                img = img.resize(image_size)
+                arr = np.array(img).flatten()
+                flat_list.append(arr)
+                paths_list.append(fpath)
+                labels_list.append(label)
+            except Exception as e:
+                print(f"Warning: impossibile caricare {fpath}: {e}")
+    
+    X_flat = np.vstack(flat_list)  # (N, H*W*3)
+    y_labels = np.array(labels_list)  # (N,)
+    encoder = LabelEncoder()
+    y = encoder.fit_transform(y_labels)  # (N,) numerico
+    return X_flat, paths_list, y, encoder
