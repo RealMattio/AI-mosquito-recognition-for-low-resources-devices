@@ -12,11 +12,11 @@ def main():
     print("Processo di preprocessing e data augmentation completato.")
 
     # Inizializza il modello di transfer learning
-    #transfer_learning = TransferLearning(X_train, y_train, X_val, y_val, need_normalize=False,need_resize=False, num_epochs=60, early_stop_patience=10)
+    transfer_learning = TransferLearning(X_train, y_train, X_val, y_val, need_normalize=False,need_resize=False, num_epochs=60, early_stop_patience=10)
     # Esegui il training del modello
-    #transfer_learning.run_transfer_learning()
-    #print("Processo di transfer learning completato.")
-    #transfer_learning.show_training_results()
+    transfer_learning.run_transfer_learning()
+    print("Processo di transfer learning completato.")
+    transfer_learning.show_training_results()
 
     results = evaluate_and_save_results(X_test, y_test, need_normalize=False, need_resize=False, output_json="test_results_2.json")
     print("Processo di valutazione e salvataggio dei risultati completato.")
