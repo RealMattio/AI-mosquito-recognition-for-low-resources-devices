@@ -1,26 +1,37 @@
 from images_preprocessing import ImagePreprocessor
-from transfer_learning import TransferLearning, evaluate_and_save_results
+from transfer_learning_tf import TransferLearning
+import os
 
 
 def main():
-    # Inizializza il preprocessore delle immagini
+    """ # Inizializza il preprocessore delle immagini
     preprocessor = ImagePreprocessor(target_size=(224, 224), mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
     # Esegui il preprocessing delle immagini
     X_train, y_train, X_val, y_val, X_test, y_test, class_names, label_map = preprocessor.run_preprocessing_pipeline()
-
-    print("Processo di preprocessing e data augmentation completato.")
-
-    # Inizializza il modello di transfer learning
-    #transfer_learning = TransferLearning(X_train, y_train, X_val, y_val, need_normalize=False,need_resize=False, num_epochs=60, early_stop_patience=10)
-    # Esegui il training del modello
-    #transfer_learning.run_transfer_learning()
-    #print("Processo di transfer learning completato.")
-    #transfer_learning.show_training_results()
-
-    results = evaluate_and_save_results(X_test, y_test, need_normalize=False, need_resize=False, output_json="test_results_2.json")
-    print("Processo di valutazione e salvataggio dei risultati completato.")
-    print("Risultati:", results)
-
+    """
+    # Devi solo fornire i percorsi alle cartelle del tuo dataset
+    TRAIN_PATH = 'augmented_dataset_splitted/train'
+    VAL_PATH = 'augmented_dataset_splitted/validation'
+    TEST_PATH = 'augmented_dataset_splitted/test'
+    
+    # Assicurati che le cartelle esistano prima di eseguire
+    if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH) or not os.path.exists(TEST_PATH):
+        print(f"ERRORE: Assicurati che le cartelle train, val e test esistano.")
+        print("Esegui prima lo script per creare la struttura dati.")
+    else:
+        trainer = TransferLearning(
+            train_dir=TRAIN_PATH,
+            val_dir=VAL_PATH,
+            test_dir=TEST_PATH,
+            num_classes=2,
+            num_epochs=100,
+            early_stop_patience=15,
+            learning_rate=0.001
+        )
+        
+        trainer.run_transfer_learning()
+        trainer.show_training_results()
+    
 if __name__ == "__main__":
     main()
