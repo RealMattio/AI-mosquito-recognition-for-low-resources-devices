@@ -31,7 +31,7 @@ def main():
         )
         
         trainer.run_transfer_learning()
-        trainer.show_training_results()
+        trainer.save_training_results()
     
 if __name__ == "__main__":
     main()
