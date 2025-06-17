@@ -177,6 +177,7 @@ cython_debug/
 dataset/
 dataset1/
 augmented_dataset/
+augmented_dataset_splitted/
 
 prep.py
 Augmented Insect recognition images.zip
@@ -185,3 +186,6 @@ models/
 saved_models/
 results/retrained_models/
 devices_firmware/
+mosquito_venv/
+evaluation_results/
+other_useless_things/
