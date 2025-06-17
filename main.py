@@ -1,5 +1,5 @@
 from images_preprocessing import ImagePreprocessor
-from transfer_learning import TransferLearning, evaluate_and_save_results
+from transfer_learning2 import TransferLearning, evaluate_and_save_results
 
 
 def main():
