@@ -184,9 +184,8 @@ Augmented Insect recognition images.zip
 prova.py
 models/
 saved_models/
-
 results/retrained_models/
 devices_firmware/
 mosquito_venv/
 evaluation_results/
-
+other_useless_things/
