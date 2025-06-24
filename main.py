@@ -1,4 +1,4 @@
-from images_preprocessing import ImagePreprocessor
+#from images_preprocessing import ImagePreprocessor
 from transfer_learning_tf import TransferLearning
 import os
 

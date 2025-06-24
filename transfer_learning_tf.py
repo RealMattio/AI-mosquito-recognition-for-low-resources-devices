@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras import layers, models, applications, optimizers
+from keras import layers, models, applications, optimizers
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
@@ -69,7 +69,7 @@ class TransferLearning:
         labels = []
         
         # Assumiamo che le sottocartelle siano le classi
-        class_dirs = sorted([d for d in os.scandir(data_directory) if d.is_dir()])
+        class_dirs = sorted([d for d in os.scandir(data_directory) if d.is_dir()], key=lambda d: d.name)
         self.class_names = [d.name for d in class_dirs]
         label_map = {name: i for i, name in enumerate(self.class_names)}
 
