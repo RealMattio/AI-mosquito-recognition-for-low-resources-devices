@@ -1,6 +1,10 @@
 from images_preprocessing import ImagePreprocessor
+<<<<<<< HEAD
+from transfer_learning2 import TransferLearning, evaluate_and_save_results
+=======
 from transfer_learning_tf import TransferLearning
 import os
+>>>>>>> 312e00612343e2926512c2bf116bc20ede7535f7
 
 
 def main():
