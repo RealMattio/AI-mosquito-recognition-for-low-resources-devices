@@ -1,12 +1,13 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models, applications, optimizers
 import matplotlib.pyplot as plt
-import seaborn as sns # Per grafici più belli (matrice di confusione)
+import seaborn as sns
 import time
 import os
 import numpy as np
 import json
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
+from sklearn.model_selection import StratifiedKFold # <-- IMPORTANTE: Per la K-Fold
 
 # Assicuriamoci che la GPU venga usata correttamente (best practice)
 gpus = tf.config.list_physical_devices('GPU')
@@ -22,7 +23,12 @@ class TransferLearning:
     def __init__(self, train_dir, val_dir, test_dir,
                  num_classes:int=2, batch_size=32, num_epochs=15,
                  learning_rate=0.001, models_names=None,
-                 early_stop_patience:int=10, models_dir:str='keras_models',
+                 early_stop_patience:int=10, 
+                 # --- NUOVI PARAMETRI ---
+                 k_folds:int=5,
+                 lr_patience:int=3,
+                 # ---------------------
+                 models_dir:str='keras_models',
                  results_dir:str='keras_models_performances'):
         
         self.train_dir = train_dir
@@ -34,44 +40,93 @@ class TransferLearning:
         self.learning_rate = learning_rate
         self.models_names = models_names or ['ResNet50', 'MobileNetV2', 'NASNetMobile']
         self.early_stop_patience = early_stop_patience
+        # --- NUOVI ATTRIBUTI ---
+        self.k_folds = k_folds
+        self.lr_patience = lr_patience
+        # -----------------------
         self.models_dir = models_dir
-        self.results_dir = results_dir # Nuova cartella per i risultati
+        self.results_dir = results_dir
         os.makedirs(self.models_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
         
         self.img_height = 224
         self.img_width = 224
         
-        self.train_ds = None
-        self.val_ds = None
+        # --- ATTRIBUTI PER DATI E RISULTATI MODIFICATI ---
+        self.all_filepaths = []
+        self.all_labels = []
         self.test_ds = None
         self.class_names = []
-        self.all_histories = {}
+        self.all_cv_histories = {} # Salva le medie delle storie CV per modello
+        self.final_model_histories = {} # Salva la storia dell'addestramento finale
         self.final_accuracies = {}
+        
+    def _load_filepaths_and_labels(self, data_directory):
+        """
+        Funzione helper per caricare i percorsi dei file e le etichette da una directory.
+        """
+        filepaths = []
+        labels = []
+        
+        # Assumiamo che le sottocartelle siano le classi
+        class_dirs = sorted([d for d in os.scandir(data_directory) if d.is_dir()])
+        self.class_names = [d.name for d in class_dirs]
+        label_map = {name: i for i, name in enumerate(self.class_names)}
+
+        for class_dir in class_dirs:
+            for file in os.scandir(class_dir.path):
+                if file.name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    filepaths.append(file.path)
+                    labels.append(label_map[class_dir.name])
+        
+        return filepaths, labels
+    
+    def _parse_image(self, filename, label):
+        """
+        Funzione per leggere e decodificare un'immagine da un percorso file.
+        """
+        image = tf.io.read_file(filename)
+        image = tf.io.decode_jpeg(image, channels=3)
+        image = tf.image.resize(image, [self.img_height, self.img_width])
+        return image, label
+
+    def _create_dataset_from_slices(self, filepaths, labels, shuffle=False):
+        """
+        Crea un tf.data.Dataset da slice di percorsi e etichette.
+        """
+        dataset = tf.data.Dataset.from_tensor_slices((filepaths, labels))
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=len(filepaths))
+        dataset = dataset.map(self._parse_image, num_parallel_calls=tf.data.AUTOTUNE)
+        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+        return dataset
 
     def prepare_data(self):
-        # ... questo metodo è identico alla versione precedente ...
-        print("--- Fase 1: Caricamento dati dal disco ---")
+        """
+        MODIFICATO: Carica TUTTI i dati di training/validazione per la K-Fold
+        e prepara il test set separatamente.
+        """
+        print("--- Fase 1: Caricamento e combinazione dati per Cross-Validation ---")
         
-        self.train_ds = tf.keras.utils.image_dataset_from_directory(
-            self.train_dir, label_mode='int', seed=123,
-            image_size=(self.img_height, self.img_width), batch_size=self.batch_size)
-
-        self.val_ds = tf.keras.utils.image_dataset_from_directory(
-            self.val_dir, label_mode='int', seed=123,
-            image_size=(self.img_height, self.img_width), batch_size=self.batch_size)
-
-        self.test_ds = tf.keras.utils.image_dataset_from_directory(
-            self.test_dir, label_mode='int', seed=123,
-            image_size=(self.img_height, self.img_width), batch_size=self.batch_size, shuffle=False)
-            
-        self.class_names = self.train_ds.class_names
+        # Combina dati da train_dir e val_dir
+        train_filepaths, train_labels = self._load_filepaths_and_labels(self.train_dir)
+        val_filepaths, val_labels = self._load_filepaths_and_labels(self.val_dir)
+        
+        self.all_filepaths = np.array(train_filepaths + val_filepaths)
+        self.all_labels = np.array(train_labels + val_labels)
+        
+        print(f"Trovate {len(self.all_filepaths)} immagini totali per training/validazione.")
         print(f"Classi trovate: {self.class_names}")
 
-        AUTOTUNE = tf.data.AUTOTUNE
-        self.train_ds = self.train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
-        self.val_ds = self.val_ds.cache().prefetch(buffer_size=AUTOTUNE)
-        self.test_ds = self.test_ds.cache().prefetch(buffer_size=AUTOTUNE)
+        # Prepara il test set (rimane invariato)
+        if os.path.exists(self.test_dir):
+            print("\n--- Caricamento dati di Test ---")
+            self.test_ds = tf.keras.utils.image_dataset_from_directory(
+                self.test_dir, label_mode='int', seed=123,
+                image_size=(self.img_height, self.img_width), batch_size=self.batch_size, shuffle=False
+            ).cache().prefetch(buffer_size=tf.data.AUTOTUNE)
+            print("Test set caricato.")
 
 
     def get_model(self, model_name_str):
@@ -109,28 +164,17 @@ class TransferLearning:
         return model
 
     def evaluate_model(self, model, model_name):
-        """
-        NUOVO METODO: Esegue una valutazione completa del modello sul test set
-        e salva metriche e grafici.
-        """
+        # ... questo metodo è identico alla versione precedente ...
         print(f"\n--- Inizio Valutazione Completa di {model_name} sul Test Set ---")
-
-        # 1. Ottenere le predizioni e le etichette reali
-        y_probs = model.predict(self.test_ds) # Probabilità
-        y_pred = np.argmax(y_probs, axis=1)   # Classi predette
-        y_true = np.concatenate([y for x, y in self.test_ds], axis=0) # Etichette vere
-
-        # Dizionario per salvare tutti i risultati
+        y_probs = model.predict(self.test_ds)
+        y_pred = np.argmax(y_probs, axis=1)
+        y_true = np.concatenate([y for x, y in self.test_ds], axis=0)
         results = {}
-
-        # 2. Calcolare e salvare il Classification Report
         print("\nClassification Report:")
         report_dict = classification_report(y_true, y_pred, target_names=self.class_names, output_dict=True)
         report_str = classification_report(y_true, y_pred, target_names=self.class_names)
         print(report_str)
         results['classification_report'] = report_dict
-
-        # 3. Creare e salvare la Matrice di Confusione
         cm = confusion_matrix(y_true, y_pred)
         plt.figure(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=self.class_names, yticklabels=self.class_names)
@@ -142,13 +186,10 @@ class TransferLearning:
         plt.close()
         print(f"\nMatrice di confusione salvata in: {cm_path}")
         results['confusion_matrix_path'] = cm_path
-
-        # 4. Creare e salvare la Curva ROC (gestisce caso binario e multi-classe)
         if self.num_classes == 2:
             fpr, tpr, _ = roc_curve(y_true, y_probs[:, 1])
             roc_auc = auc(fpr, tpr)
             results['roc_auc'] = roc_auc
-            
             plt.figure(figsize=(8, 6))
             plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Curva ROC (AUC = {roc_auc:.2f})')
             plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -162,73 +203,143 @@ class TransferLearning:
             print(f"Curva ROC salvata in: {roc_path}")
             results['roc_curve_path'] = roc_path
         else:
-            # Per il multi-classe, l'AUC è spesso calcolato come media
             print("\nLa curva ROC per il multi-classe non è stata implementata in questo esempio.")
-
-        # 5. Salvare tutte le metriche in un file JSON
         json_path = os.path.join(self.results_dir, f'evaluation_metrics_{model_name}.json')
         with open(json_path, 'w') as f:
             json.dump(results, f, indent=4)
         print(f"Metriche di valutazione complete salvate in: {json_path}")
 
-
     def run_transfer_learning(self):
-        """Esegue il ciclo completo di addestramento e valutazione."""
+        """
+        NUOVA VERSIONE: Esegue il ciclo completo con K-Fold Cross-Validation,
+        learning rate adattivo e addestramento finale.
+        """
         self.prepare_data()
+        
+        skf = StratifiedKFold(n_splits=self.k_folds, shuffle=True, random_state=42)
 
         for model_name in self.models_names:
-            print(f"\n===== INIZIO ADDESTRAMENTO: {model_name} =====")
+            print(f"\n===== INIZIO PROCESSO PER MODELLO: {model_name} =====")
             
-            model = self.get_model(model_name)
+            fold_histories = []
+            fold_val_accuracies = []
             
-            model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
-                          loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            # --- FASE A: K-FOLD CROSS VALIDATION ---
+            print(f"--- Avvio {self.k_folds}-Fold Cross-Validation ---")
             
-            callbacks = [
-                tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=self.early_stop_patience, restore_best_weights=True)
-            ]
+            for fold, (train_idx, val_idx) in enumerate(skf.split(self.all_filepaths, self.all_labels)):
+                print(f"\n--- Fold {fold + 1}/{self.k_folds} ---")
+                
+                # 1. Suddivisione dati per il fold corrente
+                train_filepaths, val_filepaths = self.all_filepaths[train_idx], self.all_filepaths[val_idx]
+                train_labels, val_labels = self.all_labels[train_idx], self.all_labels[val_idx]
 
+                train_ds = self._create_dataset_from_slices(train_filepaths, train_labels, shuffle=True)
+                val_ds = self._create_dataset_from_slices(val_filepaths, val_labels)
+
+                # 2. Creazione e compilazione del modello (DA ZERO per ogni fold)
+                model = self.get_model(model_name)
+                model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
+                              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+                
+                # 3. Definizione dei Callbacks con LR ADATTIVO
+                callbacks = [
+                    tf.keras.callbacks.EarlyStopping(
+                        monitor='val_accuracy', 
+                        patience=self.early_stop_patience, 
+                        restore_best_weights=True,
+                        verbose=1
+                    ),
+                    # --- LEARNING RATE ADATTIVO ---
+                    tf.keras.callbacks.ReduceLROnPlateau(
+                        monitor='val_loss', # Monitora la loss di validazione
+                        factor=0.2,         # Riduci LR del 80% (1-0.2)
+                        patience=self.lr_patience,  
+                        min_lr=1e-6,        # LR minimo
+                        verbose=1
+                    )
+                ]
+
+                # 4. Addestramento sul fold
+                history = model.fit(
+                    train_ds, epochs=self.num_epochs, validation_data=val_ds, callbacks=callbacks, verbose=2)
+                
+                # 5. Salvataggio risultati del fold
+                fold_histories.append(history.history)
+                best_val_acc = max(history.history['val_accuracy'])
+                fold_val_accuracies.append(best_val_acc)
+                print(f"Fold {fold + 1} - Miglior val_accuracy: {best_val_acc:.4f}")
+
+            # Calcolo e stampa delle performance medie della CV
+            mean_cv_accuracy = np.mean(fold_val_accuracies)
+            std_cv_accuracy = np.std(fold_val_accuracies)
+            self.final_accuracies[f"{model_name}_CV"] = f"{mean_cv_accuracy:.4f} +/- {std_cv_accuracy:.4f}"
+            print(f"\n--- Risultato Cross-Validation per {model_name} ---")
+            print(f"Accuratezza media sui {self.k_folds} folds: {mean_cv_accuracy:.4f} (std: {std_cv_accuracy:.4f})")
+
+            # --- FASE B: ADDESTRAMENTO FINALE SUL DATASET COMPLETO ---
+            print(f"\n--- Avvio Addestramento Finale di {model_name} su tutti i dati ---")
+            
+            # 1. Creazione dataset con tutti i dati (train + val)
+            full_train_ds = self._create_dataset_from_slices(self.all_filepaths, self.all_labels, shuffle=True)
+            
+            # 2. Creazione e compilazione del modello finale
+            final_model = self.get_model(model_name)
+            final_model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
+                                loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            
+            # 3. Addestramento (senza validation data e early stopping basato su val_)
+            #    Potremmo addestrare per un numero fisso di epoche basato sulla media CV
+            #    o usare EarlyStopping su 'loss'
             since = time.time()
-            history = model.fit(
-                self.train_ds, epochs=self.num_epochs, validation_data=self.val_ds, callbacks=callbacks)
+            history_final = final_model.fit(full_train_ds, epochs=self.num_epochs, verbose=1)
             time_elapsed = time.time() - since
-            print(f"Addestramento completato in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
+            print(f"Addestramento finale completato in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
             
-            self.all_histories[model_name] = history.history
-            best_acc = max(history.history['val_accuracy'])
-            self.final_accuracies[model_name] = best_acc
+            self.final_model_histories[model_name] = history_final.history
             
-            filename = f"{model_name}_{best_acc:.4f}.keras"
+            # 4. Salvataggio del modello finale
+            filename = f"{model_name}_final_model.keras"
             path = os.path.join(self.models_dir, filename)
-            model.save(path)
-            print(f"Modello salvato in: {path}")
+            final_model.save(path)
+            print(f"Modello finale salvato in: {path}")
 
-            # --- CHIAMATA AL NUOVO METODO DI VALUTAZIONE ---
+            # --- FASE C: VALUTAZIONE FINALE SUL TEST SET ---
             if self.test_ds:
-                self.evaluate_model(model, model_name)
+                self.evaluate_model(final_model, model_name)
+
 
     def save_training_results(self, show_plots=False):
-        # ... questo metodo è identico alla versione precedente ...
-        print("\n--- Risultati Finali di Validazione ---")
+        # ... questo metodo può essere adattato per visualizzare le medie della CV
+        # ... o le curve di training del modello finale. Qui visualizzo quelle finali.
+        print("\n--- Risultati Finali di Validazione (dalla Cross-Validation) ---")
         for name, acc in self.final_accuracies.items():
-            print(f"{name}: {acc:.4f}")
+            print(f"{name}: {acc}")
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        for name, h in self.all_histories.items():
-            val_loss = h['val_loss']; val_acc = h['val_accuracy']
-            train_loss = h['loss']; train_acc = h['accuracy']
-            epochs_range = range(len(val_loss))
+        # Grafici basati sull'addestramento del modello finale
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        
+        for name, h in self.final_model_histories.items():
+            train_loss = h['loss']
+            train_acc = h['accuracy']
+            epochs_range = range(len(train_loss))
             
-            ax1.plot(epochs_range, train_loss, label=f"{name} Train Loss")
-            ax1.plot(epochs_range, val_loss, '--', label=f"{name} Val Loss")
-            ax2.plot(epochs_range, train_acc, label=f"{name} Train Accuracy")
-            ax2.plot(epochs_range, val_acc, '--', label=f"{name} Val Accuracy")
+            # Plot Loss
+            ax_loss = ax
+            ax_loss.plot(epochs_range, train_loss, label=f"{name} Train Loss")
+            ax_loss.set_xlabel('Epoca', color='black')
+            ax_loss.set_ylabel('Loss', color='blue')
+            ax_loss.tick_params(axis='y', labelcolor='blue')
+            
+            # Plot Accuracy
+            ax_acc = ax_loss.twinx()
+            ax_acc.plot(epochs_range, train_acc, '--', label=f"{name} Train Accuracy")
+            ax_acc.set_ylabel('Accuratezza', color='green')
+            ax_acc.tick_params(axis='y', labelcolor='green')
 
-        ax1.set(title='Loss', xlabel='Epoca', ylabel='Loss')
-        ax1.legend(); ax1.grid()
-        ax2.set(title='Accuratezza', xlabel='Epoca', ylabel='Accuratezza')
-        ax2.legend(); ax2.grid()
+        ax.set_title('Loss e Accuratezza del Training Finale')
+        fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax.transAxes)
+        ax.grid()
         plt.tight_layout()
-        plt.savefig(os.path.join(self.results_dir, 'training_results.png'))
+        plt.savefig(os.path.join(self.results_dir, 'final_training_results.png'))
         plt.show() if show_plots else plt.close()
-

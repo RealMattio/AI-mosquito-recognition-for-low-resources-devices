@@ -26,12 +26,14 @@ def main():
             test_dir=TEST_PATH,
             num_classes=2,
             num_epochs=100,
-            early_stop_patience=15,
-            learning_rate=0.001
+            early_stop_patience=10,
+            learning_rate=0.001,
+            k_folds=5,
+            lr_patience=3
         )
         
         trainer.run_transfer_learning()
-        trainer.show_training_results()
+        trainer.save_training_results()
     
 if __name__ == "__main__":
     main()
