@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras import layers, models, applications, optimizers
+from keras import layers, models, applications, optimizers
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
@@ -206,7 +206,7 @@ class TransferLearning:
                     tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=self.lr_patience, min_lr=1e-6, verbose=1)
                 ]
 
-                history = model.fit(train_ds, epochs=self.num_epochs, validation_data=val_ds, callbacks=callbacks, verbose=2)
+                history = model.fit(train_ds, epochs=self.num_epochs, validation_data=val_ds, callbacks=callbacks, verbose=1)
                 
                 fold_val_accuracies.append(max(history.history['val_accuracy']))
                 fold_epochs.append(len(history.history['val_loss'])) # <-- Consiglio 1
@@ -234,6 +234,17 @@ class TransferLearning:
             final_model.save(path)
             print(f"Modello finale salvato in: {path}")
 
+            # --- Salvataggio della storia del modello in un file JSON ---
+            history_dict = history_final.history
+            # Converti i valori in float standard di Python per la compatibilità JSON
+            for key in history_dict:
+                history_dict[key] = [float(val) for val in history_dict[key]]
+                
+            history_path = os.path.join(self.results_dir, f"history_{model_name}.json")
+            with open(history_path, 'w') as f:
+                json.dump(history_dict, f, indent=4)
+            print(f"Storia dell'addestramento salvata in: {history_path}")
+
             if self.test_ds:
                 self.evaluate_model(final_model, model_name) # <-- Assicurati che il codice di evaluate sia qui
 
@@ -244,32 +255,117 @@ class TransferLearning:
             print(f"{name}: {acc}")
         
         # Grafici basati sull'addestramento del modello finale
-        fig, ax_loss = plt.subplots(1, 1, figsize=(12, 7))
+        fig, ax_loss = plt.subplots(1, 1, figsize=(14, 8)) # Leggermente più grande per una migliore leggibilità
         ax_acc = ax_loss.twinx() # Crea l'asse per l'accuracy una sola volta
         
-        # Colori per i grafici
-        color_loss = 'tab:blue'
-        color_acc = 'tab:green'
+        # --- MODIFICA: Creazione di una palette di colori ---
+        # Usiamo una palette di colori standard di Matplotlib ('tab10' ha 10 colori distinti)
+        # per assegnare un colore diverso a ogni modello.
+        colors = plt.cm.get_cmap('tab10').colors
         
+        # Impostazioni generali degli assi (fuori dal ciclo)
         ax_loss.set_xlabel('Epoca', fontsize=12)
-        ax_loss.set_ylabel('Loss', color=color_loss, fontsize=12)
-        ax_loss.tick_params(axis='y', labelcolor=color_loss)
-        
-        ax_acc.set_ylabel('Accuratezza', color=color_acc, fontsize=12)
-        ax_acc.tick_params(axis='y', labelcolor=color_acc)
+        ax_loss.set_ylabel('Loss', fontsize=12)
+        ax_acc.set_ylabel('Accuratezza', fontsize=12)
+        ax_loss.set_title('Loss e Accuratezza del Training Finale per Modello', fontsize=16)
+        ax_loss.grid(True, which='both', linestyle='--', linewidth=0.5)
 
-        for name, h in self.final_model_histories.items():
+        # Ciclo sui modelli, usando enumerate per ottenere un indice per i colori
+        for i, (name, h) in enumerate(self.final_model_histories.items()):
+            # Seleziona un colore dalla palette in modo ciclico
+            color = colors[i % len(colors)]
+            
             epochs_range = range(len(h['loss']))
             
-            ax_loss.plot(epochs_range, h['loss'], color=color_loss, label=f"{name} Train Loss")
-            ax_acc.plot(epochs_range, h['accuracy'], color=color_acc, linestyle='--', label=f"{name} Train Accuracy")
+            # --- MODIFICA: Uso di un colore diverso per ogni modello ---
+            # Usiamo lo stesso colore per loss e accuracy di un modello, ma con stili diversi.
+            
+            # Plot Loss (linea continua)
+            ax_loss.plot(epochs_range, h['loss'], color=color, linestyle='-', label=f"{name} Train Loss")
+            
+            # Plot Accuracy (linea tratteggiata)
+            ax_acc.plot(epochs_range, h['accuracy'], color=color, linestyle='--', label=f"{name} Train Accuracy")
 
-        ax_loss.set_title('Loss e Accuratezza del Training Finale', fontsize=14)
-        fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax_loss.transAxes)
-        ax_loss.grid(True)
+        # --- MODIFICA: Gestione della legenda migliorata per assi doppi ---
+        # Raccogliamo le "handles" (le linee) e le etichette da entrambi gli assi
+        handles_loss, labels_loss = ax_loss.get_legend_handles_labels()
+        handles_acc, labels_acc = ax_acc.get_legend_handles_labels()
+        
+        # Combiniamo e mostriamo una singola legenda
+        ax_loss.legend(handles_loss + handles_acc, labels_loss + labels_acc, loc='best')
+        
         plt.tight_layout()
-        plt.savefig(os.path.join(self.results_dir, 'final_training_results.png'))
+        # Salva il grafico
+        output_path = os.path.join(self.results_dir, 'final_training_results.png')
+        plt.savefig(output_path)
+        print(f"\nGrafico dei risultati di training salvato in: {output_path}")
+
         if show_plots:
             plt.show()
         else:
             plt.close()
+
+
+def plot_saved_histories(results_dir, output_filename='final_training_results_from_json.png', show_plots=True):
+    """
+    Carica le storie di addestramento salvate come file JSON e genera i grafici di loss/accuratezza.
+    
+    Args:
+        results_dir (str): La cartella dove sono stati salvati i file history_...json.
+        output_filename (str): Il nome del file per il grafico generato.
+        show_plots (bool): Se mostrare il grafico a schermo dopo averlo salvato.
+    """
+    print(f"Ricerca di file di history nella cartella: {results_dir}")
+    
+    all_histories = {}
+    
+    # Cerca e carica tutti i file di history
+    for filename in os.listdir(results_dir):
+        if filename.startswith('history_') and filename.endswith('.json'):
+            # Estrai il nome del modello dal nome del file
+            # Es: "history_ResNet50.json" -> "ResNet50"
+            model_name = filename.replace('history_', '').replace('.json', '')
+            
+            filepath = os.path.join(results_dir, filename)
+            with open(filepath, 'r') as f:
+                history_data = json.load(f)
+                all_histories[model_name] = history_data
+                print(f"Caricata history per il modello: {model_name}")
+
+    if not all_histories:
+        print("Nessun file di history trovato. Impossibile generare il grafico.")
+        return
+
+    # --- La logica di plotting è la STESSA che hai già corretto ---
+    fig, ax_loss = plt.subplots(1, 1, figsize=(14, 8))
+    ax_acc = ax_loss.twinx()
+    
+    colors = plt.cm.get_cmap('tab10').colors
+    
+    ax_loss.set_xlabel('Epoca', fontsize=12)
+    ax_loss.set_ylabel('Loss', fontsize=12)
+    ax_acc.set_ylabel('Accuratezza', fontsize=12)
+    ax_loss.set_title('Loss e Accuratezza del Training Finale (da file salvati)', fontsize=16)
+    ax_loss.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    for i, (name, h) in enumerate(all_histories.items()):
+        color = colors[i % len(colors)]
+        epochs_range = range(len(h['loss']))
+        
+        ax_loss.plot(epochs_range, h['loss'], color=color, linestyle='-', label=f"{name} Train Loss")
+        ax_acc.plot(epochs_range, h['accuracy'], color=color, linestyle='--', label=f"{name} Train Accuracy")
+
+    handles_loss, labels_loss = ax_loss.get_legend_handles_labels()
+    handles_acc, labels_acc = ax_acc.get_legend_handles_labels()
+    
+    ax_loss.legend(handles_loss + handles_acc, labels_loss + labels_acc, loc='best')
+    
+    plt.tight_layout()
+    output_path = os.path.join(results_dir, output_filename)
+    plt.savefig(output_path)
+    print(f"\nGrafico generato e salvato in: {output_path}")
+
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
