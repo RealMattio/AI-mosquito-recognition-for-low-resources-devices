@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras import layers, models, applications, optimizers
+from keras import layers, models, applications, optimizers
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
