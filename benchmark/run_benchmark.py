@@ -17,8 +17,8 @@ except ImportError:
 # --- CONFIGURAZIONE ---
 KERAS_MODELS_DIR = 'keras_training/keras_models_2506'
 TFLITE_MODELS_DIR = 'tflite_models/tflite_models_2506'
-IMAGE_PATH = 'augmented_dataset_splitted/train/Mosquito/original_00003_original.png' # Percorso dell'immagine di TEST 
-RESULTS_JSON_PATH = 'benchmark/benchmark_results.json'
+IMAGE_PATH = 'benchmark/original_00000_original.png' # Percorso dell'immagine di TEST copiata nella cartella benchmark
+RESULTS_JSON_PATH = 'benchmark/benchmark_results_WSL.json'
 
 NUM_INFERENCE_RUNS = 50
 IMG_SIZE = (224, 224)
