@@ -18,7 +18,7 @@ except ImportError:
 KERAS_MODELS_DIR = 'keras_training/keras_models_2506'
 TFLITE_MODELS_DIR = 'tflite_models/tflite_models_2506'
 IMAGE_PATH = 'benchmark/original_00000_original.png' # Percorso dell'immagine di TEST copiata nella cartella benchmark
-RESULTS_JSON_PATH = 'benchmark/benchmark_results_WSL.json'
+RESULTS_JSON_PATH = 'benchmark/benchmark_results_Raspberry_Pi_5.json'
 
 NUM_INFERENCE_RUNS = 50
 IMG_SIZE = (224, 224)
