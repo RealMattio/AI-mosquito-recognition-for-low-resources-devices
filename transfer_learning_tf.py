@@ -1,5 +1,5 @@
 import tensorflow as tf
-from keras import layers, models, applications, optimizers
+from keras import layers, models, applications, optimizers # Corretto l'import per Keras 3
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
@@ -20,14 +20,17 @@ if gpus:
         print(f"Errore nell'impostare la Memory Growth: {e}")
 
 class TransferLearning:
+    # --- MODIFICA: Aggiunto il parametro image_size ---
     def __init__(self, train_dir, val_dir, test_dir,
-                 num_classes:int=2, batch_size=32, num_epochs=25, # Aumentato num_epochs per dare più spazio a EarlyStopping
+                 image_size: tuple = (224, 224), # <-- NUOVO PARAMETRO
+                 num_classes:int=2, batch_size=32, num_epochs=25,
                  learning_rate=0.001, models_names=None,
                  early_stop_patience:int=10, 
                  k_folds:int=5,
                  lr_patience:int=3,
                  models_dir:str='keras_models',
-                 results_dir:str='keras_models_performances'):
+                 results_dir:str='keras_models_performances',
+                 mobilenet_alpha: float = 1.0):
         
         self.train_dir = train_dir
         self.val_dir = val_dir
@@ -42,11 +45,16 @@ class TransferLearning:
         self.lr_patience = lr_patience
         self.models_dir = models_dir
         self.results_dir = results_dir
+        self.mobilenet_alpha = mobilenet_alpha
         os.makedirs(self.models_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
         
-        self.img_height = 224
-        self.img_width = 224
+        # --- MODIFICA: Imposta le dimensioni dell'immagine dai parametri ---
+        if not isinstance(image_size, tuple) or len(image_size) != 2:
+            raise ValueError("image_size deve essere una tupla di due interi, es. (224, 224)")
+        self.image_size = image_size
+        self.img_height = self.image_size[0]
+        self.img_width = self.image_size[1]
         
         self.all_filepaths = []
         self.all_labels = []
@@ -57,9 +65,7 @@ class TransferLearning:
     
     def _load_filepaths_and_labels(self, data_directory):
         filepaths, labels = [], []
-        # --- FIX APPLICATO QUI ---
         class_dirs = sorted([d for d in os.scandir(data_directory) if d.is_dir()], key=lambda d: d.name)
-        # -----------------------
         if not self.class_names:
             self.class_names = [d.name for d in class_dirs]
         label_map = {name: i for i, name in enumerate(self.class_names)}
@@ -74,6 +80,7 @@ class TransferLearning:
     def _parse_image(self, filename, label):
         image = tf.io.read_file(filename)
         image = tf.io.decode_jpeg(image, channels=3)
+        # Questa funzione ora usa le dimensioni configurabili
         image = tf.image.resize(image, [self.img_height, self.img_width])
         return image, label
 
@@ -87,16 +94,14 @@ class TransferLearning:
         return dataset
 
     def prepare_data(self):
+        # ... (codice invariato) ...
         print("--- Fase 1: Caricamento e combinazione dati per Cross-Validation ---")
         train_filepaths, train_labels = self._load_filepaths_and_labels(self.train_dir)
         val_filepaths, val_labels = self._load_filepaths_and_labels(self.val_dir)
-        
         self.all_filepaths = np.array(train_filepaths + val_filepaths)
         self.all_labels = np.array(train_labels + val_labels)
-        
         print(f"Trovate {len(self.all_filepaths)} immagini totali per training/validazione.")
         print(f"Classi trovate: {self.class_names}")
-
         if os.path.exists(self.test_dir) and any(os.scandir(self.test_dir)):
             print("\n--- Caricamento dati di Test ---")
             test_filepaths, test_labels = self._load_filepaths_and_labels(self.test_dir)
@@ -105,11 +110,14 @@ class TransferLearning:
         else:
             print("\nCartella di test non trovata o vuota. La valutazione finale sarà saltata.")
 
+
     def get_model(self, model_name_str):
+        # Il modello verrà creato con le dimensioni di input corrette
         input_shape = (self.img_height, self.img_width, 3)
         inputs = tf.keras.Input(shape=input_shape)
 
-        data_augmentation = tf.keras.Sequential([
+        # Usiamo models.Sequential per Keras 3
+        data_augmentation = models.Sequential([
             layers.RandomFlip("horizontal"), layers.RandomRotation(0.1), layers.RandomZoom(0.1),
         ], name='data_augmentation')
         x = data_augmentation(inputs)
@@ -119,8 +127,11 @@ class TransferLearning:
             base_model = applications.ResNet50(input_shape=input_shape, include_top=False, weights='imagenet')
         elif model_name_str == 'MobileNetV2':
             preprocess_input = applications.mobilenet_v2.preprocess_input
-            base_model = applications.MobileNetV2(input_shape=input_shape, include_top=False, weights='imagenet')
+            base_model = applications.MobileNetV2(input_shape=input_shape, include_top=False, weights='imagenet', alpha=self.mobilenet_alpha)  # Alpha ridotto per risparmiare memoria
         elif model_name_str == 'NASNetMobile':
+            # --- NUOVO: Aggiunto controllo di validità per la dimensione dell'input ---
+            if self.img_height < 32 or self.img_width < 32:
+                raise ValueError("NASNetMobile richiede una dimensione di input di almeno 32x32.")
             preprocess_input = applications.nasnet.preprocess_input
             base_model = applications.NASNetMobile(input_shape=input_shape, include_top=False, weights='imagenet')
         else:

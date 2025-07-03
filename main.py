@@ -35,7 +35,10 @@ def main():
             k_folds=5,
             lr_patience=5,
             models_dir= f"keras_training/keras_models_{DATE}",
-            results_dir=f"keras_training/keras_models_{DATE}_performances_and_history"
+            results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
+            image_size=(96, 96),
+            models_names=['MobileNetV2'],
+            mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
         )
         
         trainer.run_transfer_learning()
