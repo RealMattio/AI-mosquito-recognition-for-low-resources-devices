@@ -1,0 +1,29 @@
+{
+    "MobileNetV2": {
+        "filename": "MobileNetV2_0.8674.pth",
+        "loaded_accuracy": 0.8674,
+        "test_accuracy": 0.8655430711610487,
+        "precision": 0.8475196835058617,
+        "recall": 0.8655430711610487,
+        "f1_score": 0.8356343752566423,
+        "roc_auc": 0.8281576558056669
+    },
+    "ResNet18": {
+        "filename": "ResNet18_0.8659.pth",
+        "loaded_accuracy": 0.8659,
+        "test_accuracy": 0.8610486891385768,
+        "precision": 0.8381150835412587,
+        "recall": 0.8610486891385768,
+        "f1_score": 0.8338466484899042,
+        "roc_auc": 0.8224717982320896
+    },
+    "ResNet50": {
+        "filename": "ResNet50_0.8665.pth",
+        "loaded_accuracy": 0.8665,
+        "test_accuracy": 0.8659176029962546,
+        "precision": 0.8463441750443524,
+        "recall": 0.8659176029962546,
+        "f1_score": 0.84558717317381,
+        "roc_auc": 0.8168260912392504
+    }
+}

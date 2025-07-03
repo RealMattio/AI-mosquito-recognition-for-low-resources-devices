@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
+from sklearn.ensemble import AdaBoostClassifier  # <-- MODIFICA: Importato AdaBoost
 from sklearn.metrics import roc_curve, auc, classification_report, accuracy_score, precision_score, recall_score, f1_score
 import joblib
 
@@ -68,16 +68,17 @@ os.makedirs(MODELS_OUTPUT_DIR, exist_ok=True)
 # 2. Define models
 def get_models():
     models = {
-        'SVC': SVC(probability=True, random_state=RANDOM_STATE, class_weight='balanced', kernel='linear', max_iter=1000 , verbose=True),
+        'SVC': SVC(probability=True, random_state=RANDOM_STATE, class_weight='balanced', kernel='linear', max_iter=1000, verbose=True),
         'MLP': MLPClassifier(random_state=RANDOM_STATE, early_stopping=True, max_iter=500, learning_rate='adaptive', verbose=True),
         'RandomForest': RandomForestClassifier(random_state=RANDOM_STATE, verbose=True),
-        'XGBoost': XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_STATE, device='cuda', verbosity=1, early_stopping_rounds=10)
+        # --- MODIFICA: Sostituito XGBoost con AdaBoost ---
+        'AdaBoost': AdaBoostClassifier(random_state=RANDOM_STATE)
     }
     return models
 
 
 models = get_models()
-""" 
+
 # 3. Train, evaluate, and collect metrics
 print("\n --- Training and evaluating models --- ")
 metrics_list = []
@@ -85,11 +86,9 @@ plt.figure(figsize=(10, 8))
 
 for name, model in models.items():
     ''' 
+    # La parte di training è stata semplificata rimuovendo il caso speciale per XGBoost
     print(f"Training {name}...")
-    if name == 'XGBoost':
-        model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=True)
-    else:
-        model.fit(X_train, y_train)
+    model.fit(X_train, y_train)
     # Save model
     joblib.dump(model, os.path.join(MODELS_OUTPUT_DIR, f"{name}.joblib"))
     '''
@@ -141,7 +140,7 @@ plt.show()
 metrics_df = pd.DataFrame(metrics_list)
 metrics_df.to_csv(METRICS_OUTPUT, index=False)
 print(f"Metrics saved to {METRICS_OUTPUT}")
- """
+
 # 5. Detailed classification report saved
 def save_reports(models, X_test, y_test, encoder, output_dir="reports"):
     os.makedirs(output_dir, exist_ok=True)

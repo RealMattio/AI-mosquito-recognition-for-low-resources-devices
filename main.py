@@ -1,6 +1,7 @@
 #from images_preprocessing import ImagePreprocessor
 from transfer_learning_tf import TransferLearning
 import os
+import datetime
 
 
 def main():
@@ -14,7 +15,10 @@ def main():
     TRAIN_PATH = 'augmented_dataset_splitted/train'
     VAL_PATH = 'augmented_dataset_splitted/validation'
     TEST_PATH = 'augmented_dataset_splitted/test'
-    
+
+    # clacola la data corrente per il salvataggio dei risultati - data in formato DDMM
+    DATE = datetime.datetime.now().strftime("%d%m")
+
     # Assicurati che le cartelle esistano prima di eseguire
     if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH) or not os.path.exists(TEST_PATH):
         print(f"ERRORE: Assicurati che le cartelle train, val e test esistano.")

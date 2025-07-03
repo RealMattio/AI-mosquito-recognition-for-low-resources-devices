@@ -1,8 +1,0 @@
-              precision    recall  f1-score   support
-
-    Mosquito       0.93      0.44      0.60       828
-Not_Mosquito       0.91      0.99      0.95      4511
-
-    accuracy                           0.91      5339
-   macro avg       0.92      0.72      0.77      5339
-weighted avg       0.91      0.91      0.89      5339
