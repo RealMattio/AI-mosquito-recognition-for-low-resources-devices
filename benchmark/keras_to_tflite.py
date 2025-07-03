@@ -3,12 +3,22 @@ import numpy as np
 import os
 import argparse # Per gestire gli argomenti da riga di comando
 
+<<<<<<< Updated upstream
 # --- CONFIGURAZIONE ---
 KERAS_MODELS_DIR = 'keras_models'
 TFLITE_MODELS_DIR = 'tflite_models'
 VALIDATION_DATA_DIR = 'augmented_dataset_splitted/validation'
 IMG_SIZE = (224, 224)
 NUM_CALIBRATION_SAMPLES = 100 # Numero di immagini da usare per la calibrazione
+=======
+# --- CONFIGURAZIONE (invariata) ---
+KERAS_MODELS_DIR = 'keras_training/keras_models_0307'
+TFLITE_MODELS_DIR = 'tflite_models/tflite_models_0307'
+TRAINING_DATA_DIR = 'augmented_dataset_splitted/train' 
+VALIDATION_DATA_DIR = 'augmented_dataset_splitted/validation'
+IMG_SIZE = (96,96)
+NUM_CALIBRATION_SAMPLES = 100
+>>>>>>> Stashed changes
 
 # Crea la cartella di output se non esiste
 os.makedirs(TFLITE_MODELS_DIR, exist_ok=True)
@@ -124,11 +134,7 @@ if __name__ == '__main__':
     )
     
     args = parser.parse_args()
-    
-    # Avvia la funzione di conversione con il modello scelto
-    convert_model(args.model)
+    run_conversion_process(args)
 
-    # Esempio di utilizzo:
-    # python benchmark/keras_to_tflite.py --model MobileNetV2
-    # python benchmark/keras_to_tflite.py --model ResNet50
-    # python benchmark/keras_to_tflite.py --model NASNetMobile
+# Esegui il file con:
+# python benchmark/keras_to_tflite.py --model MobileNetV2
