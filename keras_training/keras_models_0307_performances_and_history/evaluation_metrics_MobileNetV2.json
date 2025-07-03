@@ -1,32 +1,32 @@
 {
     "classification_report": {
         "Mosquito": {
-            "precision": 0.8768844221105527,
-            "recall": 0.8429951690821256,
-            "f1-score": 0.8596059113300493,
+            "precision": 0.8333333333333334,
+            "recall": 0.8695652173913043,
+            "f1-score": 0.851063829787234,
             "support": 414.0
         },
         "Not_Mosquito": {
-            "precision": 0.9714034315882094,
-            "recall": 0.9782897651750111,
-            "f1-score": 0.9748344370860927,
+            "precision": 0.9758820902188478,
+            "recall": 0.9680992467877714,
+            "f1-score": 0.9719750889679716,
             "support": 2257.0
         },
-        "accuracy": 0.9573193560464246,
+        "accuracy": 0.9528266566828903,
         "macro avg": {
-            "precision": 0.9241439268493811,
-            "recall": 0.9106424671285683,
-            "f1-score": 0.917220174208071,
+            "precision": 0.9046077117760906,
+            "recall": 0.9188322320895379,
+            "f1-score": 0.9115194593776028,
             "support": 2671.0
         },
         "weighted avg": {
-            "precision": 0.956753162054795,
-            "recall": 0.9573193560464246,
-            "f1-score": 0.9569742312968744,
+            "precision": 0.9537872997468886,
+            "recall": 0.9528266566828903,
+            "f1-score": 0.9532340701357642,
             "support": 2671.0
         }
     },
     "confusion_matrix_path": "keras_training/keras_models_0307_performances_and_history/confusion_matrix_MobileNetV2.png",
-    "roc_auc": 0.9822468584050909,
+    "roc_auc": 0.9820461944481901,
     "roc_curve_path": "keras_training/keras_models_0307_performances_and_history/roc_curve_MobileNetV2.png"
 }

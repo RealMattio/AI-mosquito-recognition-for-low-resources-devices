@@ -1,8 +1,10 @@
 #from images_preprocessing import ImagePreprocessor
-from transfer_learning_tf import TransferLearning
+from transfer_learning_tf import TransferLearning, plot_saved_histories
 import os
 import datetime
 
+# clacola la data corrente per il salvataggio dei risultati - data in formato DDMM
+DATE = datetime.datetime.now().strftime("%d%m")
 
 def main():
     """ # Inizializza il preprocessore delle immagini
@@ -16,8 +18,6 @@ def main():
     VAL_PATH = 'augmented_dataset_splitted/validation'
     TEST_PATH = 'augmented_dataset_splitted/test'
 
-    # clacola la data corrente per il salvataggio dei risultati - data in formato DDMM
-    DATE = datetime.datetime.now().strftime("%d%m")
 
     # Assicurati che le cartelle esistano prima di eseguire
     if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH) or not os.path.exists(TEST_PATH):
@@ -42,7 +42,11 @@ def main():
         )
         
         trainer.run_transfer_learning()
-        trainer.save_training_results()
+        trainer.save_training_results(output_filename=f'final_training_results_{DATE}.png', show_plots=False)
     
 if __name__ == "__main__":
-    main()
+    #main()
+    plot_saved_histories(
+        results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
+        output_filename=f'final_training_results_{DATE}.png',
+        show_plots=False)

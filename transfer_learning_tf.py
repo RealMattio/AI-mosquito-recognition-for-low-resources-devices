@@ -260,7 +260,7 @@ class TransferLearning:
                 self.evaluate_model(final_model, model_name) # <-- Assicurati che il codice di evaluate sia qui
 
 
-    def save_training_results(self, show_plots=False):
+    def save_training_results(self, output_filename=f'final_training_results.png', show_plots=False):
         print("\n--- Risultati Finali di Validazione (dalla Cross-Validation) ---")
         for name, acc in self.final_accuracies.items():
             print(f"{name}: {acc}")
@@ -307,7 +307,7 @@ class TransferLearning:
         
         plt.tight_layout()
         # Salva il grafico
-        output_path = os.path.join(self.results_dir, 'final_training_results.png')
+        output_path = os.path.join(self.results_dir, output_filename)
         plt.savefig(output_path)
         print(f"\nGrafico dei risultati di training salvato in: {output_path}")
 
