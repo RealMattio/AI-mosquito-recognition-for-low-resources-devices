@@ -29,15 +29,15 @@ def main():
             val_dir=VAL_PATH,
             test_dir=TEST_PATH,
             num_classes=2,
-            num_epochs=100,
-            early_stop_patience=10,
+            num_epochs=20,
+            early_stop_patience=3,
             learning_rate=0.001,
             k_folds=5,
             lr_patience=5,
             models_dir= f"keras_training/keras_models_{DATE}",
             results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
             image_size=(96, 96),
-            models_names=['MobileNetV2'],
+            models_names=['CustomCNN'],
             mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
         )
         
@@ -45,8 +45,10 @@ def main():
         trainer.save_training_results(output_filename=f'final_training_results_{DATE}.png', show_plots=False)
     
 if __name__ == "__main__":
-    #main()
+    main()
+    '''
     plot_saved_histories(
         results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
         output_filename=f'final_training_results_{DATE}.png',
         show_plots=False)
+        '''

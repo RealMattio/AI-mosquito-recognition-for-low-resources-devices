@@ -182,6 +182,7 @@ augmented_dataset_splitted/
 prep.py
 Augmented Insect recognition images.zip
 prova.py
+prova.ipynb
 models/
 saved_models/
 results/retrained_models/

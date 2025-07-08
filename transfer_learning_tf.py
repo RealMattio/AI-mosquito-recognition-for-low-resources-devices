@@ -39,7 +39,7 @@ class TransferLearning:
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
-        self.models_names = models_names or ['ResNet50', 'MobileNetV2', 'NASNetMobile']
+        self.models_names = models_names or ['ResNet50', 'MobileNetV2', 'NASNetMobile', 'CustomCNN']
         self.early_stop_patience = early_stop_patience
         self.k_folds = k_folds
         self.lr_patience = lr_patience
@@ -112,11 +112,42 @@ class TransferLearning:
 
 
     def get_model(self, model_name_str):
-        # Il modello verrà creato con le dimensioni di input corrette
         input_shape = (self.img_height, self.img_width, 3)
+        
+        # --- NUOVO: Blocco per il modello Custom CNN ---
+        if model_name_str == 'CustomCNN':
+            print("Costruzione del modello CustomCNN from scratch...")
+            
+            # Usiamo l'API Sequenziale per una semplice CNN
+            model = models.Sequential([
+                # Il primo layer definisce la forma dell'input e normalizza i pixel a [0, 1]
+                layers.Input(shape=input_shape),
+                layers.Rescaling(1./255),
+                
+                # Blocco Convoluzionale 1
+                layers.Conv2D(16, (3, 3), activation='relu'),
+                layers.MaxPooling2D((2, 2)),
+                
+                # Blocco Convoluzionale 2
+                layers.Conv2D(32, (3, 3), activation='relu'),
+                layers.MaxPooling2D((2, 2)),
+                
+                # Blocco Convoluzionale 3
+                layers.Conv2D(64, (3, 3), activation='relu'),
+                layers.MaxPooling2D((2, 2)),
+                
+                # Classificatore
+                layers.Flatten(),
+                layers.Dense(128, activation='relu'),
+                layers.Dropout(0.5),
+                layers.Dense(self.num_classes, activation='softmax')
+            ])
+            
+            return model
+
+        # La logica per i modelli di transfer learning rimane la stessa
         inputs = tf.keras.Input(shape=input_shape)
 
-        # Usiamo models.Sequential per Keras 3
         data_augmentation = models.Sequential([
             layers.RandomFlip("horizontal"), layers.RandomRotation(0.1), layers.RandomZoom(0.1),
         ], name='data_augmentation')
@@ -127,9 +158,8 @@ class TransferLearning:
             base_model = applications.ResNet50(input_shape=input_shape, include_top=False, weights='imagenet')
         elif model_name_str == 'MobileNetV2':
             preprocess_input = applications.mobilenet_v2.preprocess_input
-            base_model = applications.MobileNetV2(input_shape=input_shape, include_top=False, weights='imagenet', alpha=self.mobilenet_alpha)  # Alpha ridotto per risparmiare memoria
+            base_model = applications.MobileNetV2(input_shape=input_shape, include_top=False, weights='imagenet')
         elif model_name_str == 'NASNetMobile':
-            # --- NUOVO: Aggiunto controllo di validità per la dimensione dell'input ---
             if self.img_height < 32 or self.img_width < 32:
                 raise ValueError("NASNetMobile richiede una dimensione di input di almeno 32x32.")
             preprocess_input = applications.nasnet.preprocess_input
