@@ -24,13 +24,14 @@ class TransferLearning:
     def __init__(self, train_dir, val_dir, test_dir,
                  image_size: tuple = (224, 224), # <-- NUOVO PARAMETRO
                  num_classes:int=2, batch_size=32, num_epochs=25,
-                 learning_rate=0.001, models_names=None,
+                 learning_rate=0.001, models_names:list[str]=None,
                  early_stop_patience:int=10, 
                  k_folds:int=5,
                  lr_patience:int=3,
                  models_dir:str='keras_models',
                  results_dir:str='keras_models_performances',
-                 mobilenet_alpha: float = 1.0):
+                 mobilenet_alpha: float = 1.0,
+                 name_to_save_models:list[str] = None):
         
         self.train_dir = train_dir
         self.val_dir = val_dir
@@ -46,8 +47,11 @@ class TransferLearning:
         self.models_dir = models_dir
         self.results_dir = results_dir
         self.mobilenet_alpha = mobilenet_alpha
+        self.name_to_save_models = name_to_save_models or [f"ResNet50_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNetV2_{time.strftime('%Y%m%d_%H%M%S')}", f"NASNetMobile_{time.strftime('%Y%m%d_%H%M%S')}", f"CustomCNN_{time.strftime('%Y%m%d_%H%M%S')}"]
         os.makedirs(self.models_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
+        if len(self.models_names) != len(self.name_to_save_models):
+            raise ValueError("models_names e name_to_save_models devono avere la stessa lunghezza.")
         
         # --- MODIFICA: Imposta le dimensioni dell'immagine dai parametri ---
         if not isinstance(image_size, tuple) or len(image_size) != 2:
@@ -125,20 +129,20 @@ class TransferLearning:
                 layers.Rescaling(1./255),
                 
                 # Blocco Convoluzionale 1
-                layers.Conv2D(16, (3, 3), activation='relu'),
+                layers.Conv2D(8, (3, 3), activation='relu'),
                 layers.MaxPooling2D((2, 2)),
                 
                 # Blocco Convoluzionale 2
-                layers.Conv2D(32, (3, 3), activation='relu'),
+                layers.Conv2D(16, (3, 3), activation='relu'),
                 layers.MaxPooling2D((2, 2)),
                 
                 # Blocco Convoluzionale 3
-                layers.Conv2D(64, (3, 3), activation='relu'),
+                layers.Conv2D(32, (3, 3), activation='relu'),
                 layers.MaxPooling2D((2, 2)),
                 
                 # Classificatore
                 layers.Flatten(),
-                layers.Dense(64, activation='relu'),
+                layers.Dense(32, activation='relu'),
                 layers.Dropout(0.5),
                 layers.Dense(self.num_classes, activation='softmax')
             ])
@@ -226,7 +230,7 @@ class TransferLearning:
         self.prepare_data()
         skf = StratifiedKFold(n_splits=self.k_folds, shuffle=True, random_state=42)
 
-        for model_name in self.models_names:
+        for model_name, name_to_save in zip(self.models_names, self.name_to_save_models):
             print(f"\n===== INIZIO PROCESSO PER MODELLO: {model_name} =====")
             
             fold_val_accuracies, fold_epochs = [], []
@@ -270,7 +274,7 @@ class TransferLearning:
             history_final = final_model.fit(full_train_ds, epochs=optimal_epochs, verbose=1)
             self.final_model_histories[model_name] = history_final.history
             
-            filename = f"{model_name}_final_model.keras"
+            filename = f"{name_to_save}_final_model.keras"
             path = os.path.join(self.models_dir, filename)
             final_model.save(path)
             print(f"Modello finale salvato in: {path}")
@@ -281,13 +285,13 @@ class TransferLearning:
             for key in history_dict:
                 history_dict[key] = [float(val) for val in history_dict[key]]
                 
-            history_path = os.path.join(self.results_dir, f"history_{model_name}.json")
+            history_path = os.path.join(self.results_dir, f"history_{name_to_save}.json")
             with open(history_path, 'w') as f:
                 json.dump(history_dict, f, indent=4)
             print(f"Storia dell'addestramento salvata in: {history_path}")
 
             if self.test_ds:
-                self.evaluate_model(final_model, model_name) # <-- Assicurati che il codice di evaluate sia qui
+                self.evaluate_model(final_model, name_to_save) # <-- Assicurati che il codice di evaluate sia qui
 
 
     def save_training_results(self, output_filename=f'final_training_results.png', show_plots=False):

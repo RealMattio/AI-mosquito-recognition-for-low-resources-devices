@@ -38,6 +38,7 @@ def main():
             results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
             image_size=(96, 96),
             models_names=['CustomCNN'],
+            name_to_save_models=['SeparableCustomCNN_8_16_32'],
             mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
         )
         
