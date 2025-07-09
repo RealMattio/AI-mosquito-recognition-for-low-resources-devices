@@ -29,7 +29,7 @@ def main():
             val_dir=VAL_PATH,
             test_dir=TEST_PATH,
             num_classes=2,
-            num_epochs=20,
+            num_epochs=10,
             early_stop_patience=3,
             learning_rate=0.001,
             k_folds=5,
