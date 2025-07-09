@@ -125,15 +125,15 @@ class TransferLearning:
                 layers.Rescaling(1./255),
                 
                 # Blocco Convoluzionale 1
-                layers.SeparableConv2D(16, (3, 3), activation='relu'),
+                layers.Conv2D(16, (3, 3), activation='relu'),
                 layers.MaxPooling2D((2, 2)),
                 
                 # Blocco Convoluzionale 2
-                layers.SeparableConv2D(32, (3, 3), activation='relu'),
+                layers.Conv2D(32, (3, 3), activation='relu'),
                 layers.MaxPooling2D((2, 2)),
                 
                 # Blocco Convoluzionale 3
-                layers.SeparableConv2D(64, (3, 3), activation='relu'),
+                layers.Conv2D(64, (3, 3), activation='relu'),
                 layers.MaxPooling2D((2, 2)),
                 
                 # Classificatore
