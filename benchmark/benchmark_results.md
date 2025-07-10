@@ -16,34 +16,49 @@ Questo report riassume le performance di diversi modelli di classificazione su v
 ---
 
 ## Risultati dei Benchmark
-Di seguito sono riportate le performance dei device sui quali sono stati eseguiti i modelli in formato `.tflite`. 
+Di seguito sono riportate le performance dei device sui quali sono stati eseguiti i modelli in formato `.tflite` quantizzati a 8 bit e in formato keras sui device in grado di supportarli
 
-1️⃣**Device**: *PC (Baseline)* - INSERIRE LE SPECIFICHE TECNICHE
+1️⃣**Device**: *PC (Baseline)* - CPU: AMD Ryzen 5 5600G, RAM: 56 GB, System: WSL - Linux, GPU: NVIDIA GeForce RTX 3050
 
-| Modello      | Dimensione (KB) | Dimensione Tensor Arena (KB)|Accuratezza del modello (%) | Tempo medio di inferenza (ms) |
-| ------------ | --------------- | --------------------------- | -------------------------- | ------------------------------|
-| ResNet50     |        XX       |             XX              |             XX             |            XX                 |
-| NASNetMobile |        XX       |             XX              |             XX             |            XX                 |
-| MobileNetV2  |        XX       |             XX              |             XX             |            XX                 |
-| CustomCNN    |        XX       |             XX              |             XX             |            XX                 |
+| Modello             | Formato | Dimensione (KB) | Dimensione Tensor Arena (KB)|Accuratezza del modello (%) | Tempo medio di inferenza (ms) |
+| ------------------- | ------- | --------------- | --------------------------- | -------------------------- | ------------------------------|
+| ResNet50            | keras   |     92844       |             ---             |          98.24             |       57.27 +- 4.38           |
+| ResNet50            | tflite  |     23679       |             XX              |             XX             |       69.11 +- 0.61           |
+| ResNet50 pruned     | tflite  |     23672       |             XX              |             XX             |       69.20 +- 0.91           |
+| NASNetMobile        | keras   |     19393       |             ---             |          96.78             |       94.28 +- 20.17          |
+| NASNetMobile        | tflite  |      5226       |             XX              |             XX             |       68.27 +- 0.74           |
+| NASNetMobile pruned | tflite  |      5192       |             XX              |             XX             |       67.53 +- 0.55           |
+| MobileNetV2         | keras   |      9437       |             ---             |          96.18             |       72.03 +- 3.14           |
+| MobileNetV2         | tflite  |      2560       |             XX              |             XX             |       7.22 +- 0.11            |
+| MobileNetV2 pruned  | tflite  |      2540       |             XX              |             XX             |       7.26 +- 0.35            |
+| CustomCNN           | XX      |        XX       |             XX              |             XX             |            XX                 |
 
-2️⃣**Device**: Raspberry Pi 5 - INSERIRE LE SPECIFICHE TECNICHE
+2️⃣**Device**: Raspberry Pi 5 - CPU: Cortex-A76, RAM: 4 GB, System: Linux, GPU: None
 
-| Modello      | Dimensione (KB) | Dimensione Tensor Arena (KB)|Accuratezza del modello (%) | Tempo medio di inferenza (ms) |
-| ------------ | --------------- | --------------------------- | -------------------------- | ------------------------------|
-| ResNet50     |        XX       |             XX              |             XX             |            XX                 |
-| NASNetMobile |        XX       |             XX              |             XX             |            XX                 |
-| MobileNetV2  |        XX       |             XX              |             XX             |            XX                 |
-| CustomCNN    |        XX       |             XX              |             XX             |            XX                 |
+| Modello             | Formato | Dimensione (KB) | Dimensione Tensor Arena (KB)|Accuratezza del modello (%) | Tempo medio di inferenza (ms) |
+| ------------------- | ------- | --------------- | --------------------------- | -------------------------- | ------------------------------|
+| ResNet50            | keras   |     92844       |             ---             |          98.24             |      235.00 +- 25.70          |
+| ResNet50            | tflite  |     23679       |             XX              |             XX             |       69.37 +- 0.34           |
+| ResNet50 pruned     | tflite  |     23672       |             XX              |             XX             |       67.54 +- 1.27           |
+| NASNetMobile        | keras   |     19393       |             ---             |          96.78             |      145.19 +- 30.29          |
+| NASNetMobile        | tflite  |      5226       |             XX              |             XX             |       78.30 +- 1.31           |
+| NASNetMobile pruned | tflite  |      5192       |             XX              |             XX             |       78.17 +- 1.31           |
+| MobileNetV2         | keras   |      9437       |             ---             |          96.18             |      120.76 +- 22.92          |
+| MobileNetV2         | tflite  |      2560       |             XX              |             XX             |       10.08 +- 0.11           |
+| MobileNetV2 pruned  | tflite  |      2540       |             XX              |             XX             |        9.96 +- 0.15           |
+| CustomCNN           | XX      |        XX       |             XX              |             XX             |            XX                 |
 
-3️⃣**Device**: Raspberry Pi 5 - INSERIRE LE SPECIFICHE TECNICHE
+3️⃣**Device**: Arduino Portenta H7 - INSERIRE LE SPECIFICHE TECNICHE
 
-| Modello      | Dimensione (KB) | Dimensione Tensor Arena (KB)|Accuratezza del modello (%) | Tempo medio di inferenza (ms) |
-| ------------ | --------------- | --------------------------- | -------------------------- | ------------------------------|
-| ResNet50     |        XX       |             XX              |             XX             |            XX                 |
-| NASNetMobile |        XX       |             XX              |             XX             |            XX                 |
-| MobileNetV2  |        XX       |             XX              |             XX             |            XX                 |
-| CustomCNN    |        XX       |             XX              |             XX             |            XX                 |
+| Modello             | Formato | Dimensione (KB) | Dimensione Tensor Arena (KB)|Accuratezza del modello (%) | Tempo medio di inferenza (ms) |
+| ------------------- | ------- | --------------- | --------------------------- | -------------------------- | ------------------------------|
+| ResNet50            | tflite  |     23679       |             XX              |             XX             |            XX                 |
+| ResNet50 pruned     | tflite  |     23672       |             XX              |             XX             |            XX                 |
+| NASNetMobile        | tflite  |      5226       |             XX              |             XX             |            XX                 |
+| NASNetMobile pruned | tflite  |      5192       |             XX              |             XX             |            XX                 |
+| MobileNetV2         | tflite  |      2560       |             XX              |             XX             |            XX                 |
+| MobileNetV2 pruned  | tflite  |      2540       |             XX              |             XX             |            XX                 |
+| CustomCNN           | XX      |        XX       |             XX              |             XX             |            XX                 |
 
 
 
