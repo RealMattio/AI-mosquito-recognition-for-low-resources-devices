@@ -10,12 +10,12 @@ Il Diagramma delle Classi definisce il vocabolario statico del sistema, modellan
 ![Diagramma delle Classi](./UML_graphs/diagramma%20delle%20classi%20aggiornato.svg)
 
 #### **Analisi della Struttura**
-L'architettura finale si basa su un design **disaccoppiato** e guidato da contratti formali. Al centro rimane la classe `ControlloreTrappola`, ma la sua interazione con i moduli di servizio non avviene più tramite dipendenze dirette da classi concrete. Sono state introdotte delle **interfacce** (`ICamera`, `IPredizione`, `ISensoreMovimento`) che definiscono i contratti di servizio.
+L'architettura si basa su un design **disaccoppiato** e guidato da contratti formali. Al centro rimane la classe `ControlloreTrappola`, ma la sua interazione con i moduli di servizio avviene tramite dipendenze dirette da classi concrete. Sono state utilizzate delle **interfacce** (`ICamera`, `IPredizione`, `ISensoreMovimento`) che definiscono i contratti di servizio.
 
-Le classi concrete (`ModuloCAM`, `ModelloML`, `SensoreMovimento`) ora **realizzano** (implementano) queste interfacce. Di conseguenza, il `ControlloreTrappola` dipende unicamente da queste astrazioni, aderendo al **Principio di Inversione delle Dipendenze**. Le relazioni con gli attuatori (`LED`, `GATE`, `VENTOLA`) rimangono di **Composizione**, indicando un forte legame di possesso.
+Le classi concrete (`ModuloCAM`, `ModelloML`, `SensoreMovimento`) **realizzano** (implementano) queste interfacce. Di conseguenza, il `ControlloreTrappola` dipende unicamente da queste astrazioni, aderendo al **Principio di Inversione delle Dipendenze**. Le relazioni con gli attuatori (`LED`, `GATE`, `VENTOLA`) sono di **Composizione**, indicando un forte legame di possesso.
 
 #### **Punti Chiave del Design**
-* **Architettura Disaccoppiata:** La dipendenza da interfacce anziché da classi concrete è il maggior punto di forza del design finale. Rende il sistema flessibile, sostituibile e facilmente testabile.
+* **Architettura Disaccoppiata:** La dipendenza da interfacce è il maggior punto di forza del design, poiché rende il sistema flessibile, sostituibile e facilmente testabile.
 * **Contratti Formali:** Le interfacce stabiliscono API chiare tra le diverse parti del software.
 * **Incapsulamento:** La logica interna del controllore rimane nascosta, esponendo solo i metodi pubblici necessari.
 
@@ -31,7 +31,7 @@ Il sistema è modularizzato in componenti come `SistemaDiControllo`, `ServizioFo
 
 #### **Punti Chiave del Design**
 * **Design Modulare:** La suddivisione in componenti permette lo sviluppo parallelo e la manutenzione isolata di ogni parte del sistema.
-* **Comunicazione tramite Interfacce:** Questo principio architetturale è ora pienamente riflesso nel Diagramma delle Classi. Il `SistemaDiControllo` richiede l'interfaccia `ICamera`, che viene fornita dal componente `ServizioFotocamera`. Questo allineamento tra i due diagrammi è fondamentale per un design robusto.
+* **Comunicazione tramite Interfacce:** Questo principio architetturale è pienamente riflesso nel Diagramma delle Classi. Il `SistemaDiControllo` richiede l'interfaccia `ICamera`, che viene fornita dal componente `ServizioFotocamera`. Questo allineamento tra i due diagrammi è fondamentale per un design robusto.
 
 ---
 ### 3. Diagramma a Stati - Il Comportamento Dinamico e Intelligente ⚡
@@ -44,7 +44,7 @@ Il Diagramma a Stati descrive il ciclo di vita del sistema, specificando come es
 Il flusso comportamentale finale è stato raffinato per includere una logica di verifica a due passaggi, che ne aumenta l'intelligenza e l'efficienza:
 1.  **Stato `InAttesa`:** Una prima valutazione a basso consumo viene eseguita dalla `camera1`.
 2.  **Stato `ConfermaProcedura`:** Solo se un potenziale target viene rilevato, il sistema entra in questo stato, attivando la `camera2` per un'analisi più accurata e una decisione finale.
-3.  **Procedure Finali:** A seconda della conferma, il sistema attiva la `ProceduraCatturaFinale` o la `ProceduraRepulsioneFinale`, oppure ritorna in attesa in caso di falso allarme.
+3.  **Procedure Finali:** A seconda della conferma, il sistema attiva la `ProceduraCatturaFinale` o la `ProceduraRepulsioneFinale`, oppure ritorna in attesa in caso di fuga dell'insetto.
 4.  **Ciclo Chiuso:** Ogni procedura, una volta completata, riporta il sistema allo stato `InAttesa`, garantendo che sia sempre pronto per un nuovo ciclo.
 
 #### **Punti Chiave del Design**
