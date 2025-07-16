@@ -34,29 +34,69 @@ print("Costruzione del modello CNN custom...")
 input_shape = x_train.shape[1:] # (28, 28, 1)
 num_classes = 2 # Classi 0 e 1
 
-model = models.Sequential([
-    # Il primo layer definisce la forma dell'input e normalizza i pixel a [0, 1]
-    layers.Input(shape=input_shape),
-    layers.Rescaling(1./255),
+# model = models.Sequential([
+#     # Il primo layer definisce la forma dell'input e normalizza i pixel a [0, 1]
+#     layers.Input(shape=input_shape),
+#     layers.Rescaling(1./255),
     
-    # Blocco Convoluzionale 1
-    layers.Conv2D(16, (3, 3), activation='relu'),
-    layers.MaxPooling2D((2, 2)),
+#     # Blocco Convoluzionale 1
+#     layers.Conv2D(16, (3, 3), activation='relu'),
+#     layers.MaxPooling2D((2, 2)),
     
-    # Blocco Convoluzionale 2
-    layers.Conv2D(32, (3, 3), activation='relu'),
-    layers.MaxPooling2D((2, 2)),
+#     # Blocco Convoluzionale 2
+#     layers.Conv2D(32, (3, 3), activation='relu'),
+#     layers.MaxPooling2D((2, 2)),
     
-    # Blocco Convoluzionale 3
-    layers.Conv2D(64, (3, 3), activation='relu'),
-    layers.MaxPooling2D((2, 2)),
+#     # Blocco Convoluzionale 3
+#     layers.Conv2D(64, (3, 3), activation='relu'),
+#     layers.MaxPooling2D((2, 2)),
     
-    # Classificatore
-    layers.Reshape((6400,1)),
-    layers.Conv1D(filters=64, kernel_size=6400, activation='relu', padding='valid'),
-    layers.Reshape((64,1)),
-    layers.Conv1D(2, 64, activation='softmax', padding='valid') 
-], name="CustomCNN_MNIST")
+#     # Classificatore
+#     layers.Reshape((6400,1)),
+#     layers.Conv1D(filters=64, kernel_size=6400, activation='relu', padding='valid'),
+#     layers.Reshape((64,1)),
+#     layers.Conv1D(2, 64, activation='softmax', padding='valid') 
+# ], name="CustomCNN_MNIST")
+
+def build_modular_cnn(input_shape=input_shape, num_classes=num_classes):
+    """
+    Costruisce una CNN modulare che si adatta a diverse dimensioni di input.
+    """
+    # 1. Definisci l'input del modello
+    inputs = layers.Input(shape=input_shape)
+
+    # 2. Costruisci la base convoluzionale
+    x = layers.Rescaling(1./255)(inputs)
+    x = layers.Conv2D(8, (3, 3), activation='relu')(x)
+    x = layers.MaxPooling2D((2, 2))(x)
+    x = layers.Conv2D(16, (3, 3), activation='relu')(x)
+    x = layers.MaxPooling2D((2, 2))(x)
+    # L'output di questa base avrà una forma (H, W, C) che dipende dall'input
+    conv_base_output = layers.Conv2D(32, (3, 3), activation='relu')(x)
+
+    # 3. Calcola dinamicamente la dimensione per il flatten
+    # Otteniamo la forma dell'output della base (es. (None, 10, 10, 64))
+    shape = conv_base_output.shape
+    # Calcoliamo la dimensione del vettore appiattito (es. 10 * 10 * 64 = 6400)
+    flattened_size = shape[1] * shape[2] * shape[3]
+    
+    # 4. Costruisci il classificatore dinamico
+    # Il Reshape ora usa la dimensione calcolata al volo
+    x = layers.Reshape((flattened_size, 1))(conv_base_output)
+
+    # Il kernel della Conv1D ora usa la dimensione calcolata al volo
+    x = layers.Conv1D(filters=32, kernel_size=flattened_size, activation='relu', padding='valid')(x)
+
+    # Il resto del classificatore
+    x = layers.Reshape((32, 1))(x) # Questo 64 è fisso perché è il n° di filtri del layer precedente
+    x = layers.Conv1D(num_classes, 32, activation='softmax', padding='valid')(x)
+    
+    # Flatten finale per ottenere l'output nella forma corretta (batch, num_classes)
+    outputs = layers.Flatten()(x)
+
+    # 5. Crea e restituisci il modello finale
+    model = models.Model(inputs=inputs, outputs=outputs)
+    return model
 
 # model = models.Sequential([
 #     layers.Input(shape=input_shape),
@@ -72,6 +112,7 @@ model = models.Sequential([
     
 #     layers.Dense(num_classes, activation='softmax')
 # ], name="CustomCNN_MNIST")
+model = build_modular_cnn()
 
 model.compile(
     optimizer='adam',
@@ -86,7 +127,7 @@ print("-" * 50)
 # --- 3. ADDESTRAMENTO DEL MODELLO KERAS ---
 
 print("Inizio addestramento del modello Keras...")
-model.fit(x_train, y_train, epochs=15, validation_data=(x_test, y_test), batch_size=64)
+model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test), batch_size=64)
 print("-" * 50)
 
 
@@ -138,7 +179,8 @@ input_details = interpreter.get_input_details()[0]
 output_details = interpreter.get_output_details()[0]
 
 correct_predictions = 0
-for i in range(len(x_test)):
+from tqdm import tqdm
+for i in tqdm(range(len(x_test))):
     # Ottieni l'immagine di test
     test_image = x_test[i]
     

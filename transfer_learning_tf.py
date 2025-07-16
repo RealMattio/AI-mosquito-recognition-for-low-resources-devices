@@ -113,7 +113,48 @@ class TransferLearning:
             print("Test set caricato.")
         else:
             print("\nCartella di test non trovata o vuota. La valutazione finale sarà saltata.")
+    
+    
+    def build_modular_cnn(self):
+        """
+        Costruisce una CNN modulare che si adatta a diverse dimensioni di input.
+        """
+        input_shape = (self.img_height, self.img_width, 3)  # Assicurati che l'input sia in formato (H, W, C)
+        # 1. Definisci l'input del modello
+        inputs = layers.Input(shape=input_shape)
 
+        # 2. Costruisci la base convoluzionale
+        x = layers.Rescaling(1./255)(inputs)
+        x = layers.Conv2D(8, (3, 3), activation='relu')(x)
+        x = layers.MaxPooling2D((2, 2))(x)
+        x = layers.Conv2D(16, (3, 3), activation='relu')(x)
+        x = layers.MaxPooling2D((2, 2))(x)
+        # L'output di questa base avrà una forma (H, W, C) che dipende dall'input
+        conv_base_output = layers.Conv2D(32, (3, 3), activation='relu')(x)
+
+        # 3. Calcola dinamicamente la dimensione per il flatten
+        # Otteniamo la forma dell'output della base (es. (None, 10, 10, 64))
+        shape = conv_base_output.shape
+        # Calcoliamo la dimensione del vettore appiattito (es. 10 * 10 * 64 = 6400)
+        flattened_size = shape[1] * shape[2] * shape[3]
+        
+        # 4. Costruisci il classificatore dinamico
+        # Il Reshape ora usa la dimensione calcolata al volo
+        x = layers.Reshape((flattened_size, 1))(conv_base_output)
+
+        # Il kernel della Conv1D ora usa la dimensione calcolata al volo
+        x = layers.Conv1D(filters=32, kernel_size=flattened_size, activation='relu', padding='valid')(x)
+
+        # Il resto del classificatore
+        x = layers.Reshape((32, 1))(x) # Questo 64 è fisso perché è il n° di filtri del layer precedente
+        x = layers.Conv1D(self.num_classes, 32, activation='softmax', padding='valid')(x)
+
+        # Flatten finale per ottenere l'output nella forma corretta (batch, num_classes)
+        outputs = layers.Flatten()(x)
+
+        # 5. Crea e restituisci il modello finale
+        model = models.Model(inputs=inputs, outputs=outputs)
+        return model
 
     def get_model(self, model_name_str):
         input_shape = (self.img_height, self.img_width, 3)
@@ -121,32 +162,7 @@ class TransferLearning:
         # --- NUOVO: Blocco per il modello Custom CNN ---
         if model_name_str == 'CustomCNN':
             print("Costruzione del modello CustomCNN from scratch...")
-            
-            # Usiamo l'API Sequenziale per una semplice CNN
-            model = models.Sequential([
-                # Il primo layer definisce la forma dell'input e normalizza i pixel a [0, 1]
-                layers.Input(shape=input_shape),
-                layers.Rescaling(1./255),
-                
-                # Blocco Convoluzionale 1
-                layers.Conv2D(8, (3, 3), activation='relu'),
-                layers.MaxPooling2D((2, 2)),
-                
-                # Blocco Convoluzionale 2
-                layers.Conv2D(16, (3, 3), activation='relu'),
-                layers.MaxPooling2D((2, 2)),
-                
-                # Blocco Convoluzionale 3
-                layers.Conv2D(32, (3, 3), activation='relu'),
-                layers.MaxPooling2D((2, 2)),
-                
-                # Classificatore
-                layers.Flatten(),
-                layers.Dense(32, activation='relu'),
-                layers.Dropout(0.5),
-                layers.Dense(self.num_classes, activation='softmax')
-            ])
-            
+            model = self.build_modular_cnn()
             return model
 
         # La logica per i modelli di transfer learning rimane la stessa

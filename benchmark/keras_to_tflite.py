@@ -7,8 +7,8 @@ import argparse
 import tensorflow_model_optimization as tfmot
 
 # --- CONFIGURAZIONE (invariata) ---
-KERAS_MODELS_DIR = 'keras_training/keras_models_0807'
-TFLITE_MODELS_DIR = 'tflite_models/tflite_models_0807'
+KERAS_MODELS_DIR = 'keras_training/keras_models_1607'
+TFLITE_MODELS_DIR = 'tflite_models/tflite_models_1607'
 TRAINING_DATA_DIR = 'augmented_dataset_splitted/train' 
 VALIDATION_DATA_DIR = 'augmented_dataset_splitted/validation'
 IMG_SIZE = (96, 96)

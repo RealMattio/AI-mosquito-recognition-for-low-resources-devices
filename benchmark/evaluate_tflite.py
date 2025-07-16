@@ -28,6 +28,14 @@ def evaluate_tflite_model(model_path, dataset_dir, output_dir):
         print(f"ERRORE: Impossibile caricare il file del modello TFLite: {e}")
         return
 
+    # --- MODIFICA #1: ESTRAI I PARAMETRI DI DEQUANTIZZAZIONE ---
+    # Controlla se il modello di output è quantizzato
+    is_output_quantized = 'quantization' in output_details and output_details['quantization'] != (0.0, 0)
+    if is_output_quantized:
+        output_scale, output_zero_point = output_details['quantization']
+        print(f"Output quantizzato rilevato. Scala: {output_scale}, Punto Zero: {output_zero_point}")
+
+
     # --- 2. Caricamento del Dataset di Test ---
     # Ottiene la dimensione di input richiesta dal modello
     height = input_details['shape'][1]
@@ -56,7 +64,7 @@ def evaluate_tflite_model(model_path, dataset_dir, output_dir):
     print("Esecuzione inferenza su tutto il set di test...")
     # Itera su ogni batch di immagini e etichette nel dataset
     for images, labels in test_ds:
-        for image in images:
+        for image, label in zip(images, labels):
             # Aggiungi la dimensione del batch (da H,W,C a 1,H,W,C)
             img_batch = np.expand_dims(image, axis=0).astype(input_details['dtype'])
             
@@ -68,7 +76,18 @@ def evaluate_tflite_model(model_path, dataset_dir, output_dir):
             
             # Ottieni il risultato e aggiungilo alla lista
             output_data = interpreter.get_tensor(output_details['index'])
-            all_predictions.append(output_data[0])
+            # print(f"Output grezzo: {output_data}")
+            # # stampo anche la label associata
+            # print(f"Label reale: {label}")
+            # #all_predictions.append(output_data[0])
+            # --- MODIFICA #2: APPLICA LA DEQUANTIZZAZIONE ---
+            if is_output_quantized:
+                # Applica la formula per ottenere i valori in float
+                dequantized_output = (output_data.astype(np.float32) - output_zero_point) * output_scale
+                all_predictions.append(dequantized_output[0])
+            else:
+                # Se l'output non è quantizzato, usa il valore direttamente
+                all_predictions.append(output_data[0])
 
         # Aggiungi le etichette reali alla lista
         all_true_labels.extend(labels.numpy())
@@ -169,5 +188,5 @@ if __name__ == '__main__':
     evaluate_tflite_model(args.model_path, args.dataset_dir, args.output_dir)
 
 # Esempio di utilizzo:
-# python evaluate_tflite.py --model_path path/to/model.tflite --dataset_dir path/to/test_dataset --output_dir path/to/output
-# python evaluate_tflite.py --model_path models/efficientnet_lite0.tflite --output_dir evaluation_results
+# python benchmark/evaluate_tflite.py --model_path path/to/model.tflite --dataset_dir path/to/test_dataset --output_dir path/to/output
+# python benchmark/evaluate_tflite.py --model_path tflite_models/tflite_models_1607/CustomCNN_noDense_conv2D_quant_int8.tflite --output_dir tflite_models/tflite_models_1607

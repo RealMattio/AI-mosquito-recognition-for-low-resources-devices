@@ -9,7 +9,7 @@ import argparse
 # --- CONFIGURAZIONE ---
 # NOTA: Devi comunque specificare un percorso per i dati di validazione
 # che servono per la calibrazione della quantizzazione.
-VALIDATION_DATA_DIR = 'augmented_dataset_splitted/validation' 
+VALIDATION_DATA_DIR = 'augmented_dataset_splitted/train' 
 IMG_SIZE = (96, 96)
 NUM_CALIBRATION_SAMPLES = 50
 
@@ -55,7 +55,8 @@ def convert_single_model(source_dir, model_name, dest_dir):
         calibration_ds = tf.keras.utils.image_dataset_from_directory(
             VALIDATION_DATA_DIR,
             label_mode='int', seed=123, image_size=IMG_SIZE, batch_size=1
-        ).take(NUM_CALIBRATION_SAMPLES)
+        )
+        #).take(NUM_CALIBRATION_SAMPLES)
     except FileNotFoundError:
         print(f"ERRORE: Cartella dei dati di validazione non trovata: '{VALIDATION_DATA_DIR}'.")
         return
@@ -68,8 +69,9 @@ def convert_single_model(source_dir, model_name, dest_dir):
         
         preprocess_function = PREPROCESS_FUNCTIONS[base_model_name]
         for images, _ in calibration_ds:
-            yield [preprocess_function(tf.cast(images, tf.float32))]
-
+            #yield [preprocess_function(tf.cast(images, tf.float32))]
+            yield [images]
+            
     # 3. Configura il convertitore e converti in TFLite INT8
     print("Avvio conversione e quantizzazione INT8...")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -111,5 +113,5 @@ if __name__ == '__main__':
 
 '''
 # Esempio di utilizzo:
-python benchmark/keras_to_tflite_simplified.py --source_dir keras_training/keras_models_0907 --model_name CustomCNN --dest_dir tflite_models/tflite_models_0907
+python benchmark/keras_to_tflite_simplified.py --source_dir keras_training/keras_models_1607 --model_name CustomCNN --dest_dir tflite_models/tflite_models_1607
 '''
