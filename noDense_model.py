@@ -64,7 +64,7 @@ class MobileNetV2(Model):
             # da (batch, 1280) a (batch, 1, 1, 1280)
             layers.Reshape((1, 1, last_layer_filters), name="reshape_for_conv"),
 
-            layers.Dropout(0.5, name="dropout_layer"),  # Aggiunta di un layer di dropout per regolarizzazione
+            layers.Dropout(0.2, name="dropout_layer"),  # Aggiunta di un layer di dropout per regolarizzazione
             # La nostra Conv2D 1x1 che emula il layer Dense
             layers.Conv2D(filters=num_classes, kernel_size=(1, 1), activation='softmax', name="classifier_conv"),
 
@@ -135,6 +135,8 @@ class MobileNet(Model):
             # da (batch, 1280) a (batch, 1, 1, 1280)
             layers.Reshape((1, 1, last_layer_filters), name="reshape_for_conv"),
 
+            # Aggiunta di un layer di dropout per regolarizzazione
+            layers.Dropout(0.2, name="dropout_layer"),
             # La nostra Conv2D 1x1 che emula il layer Dense
             layers.Conv2D(filters=num_classes, kernel_size=(1, 1), activation='softmax', name="classifier_conv"),
 
@@ -190,7 +192,7 @@ class NASNetMobile(Model):
             layers.InputLayer(input_shape=last_layer_output_shape[1:]),
             layers.GlobalAveragePooling2D(name="global_pool"),
             layers.Reshape((1, 1, last_layer_filters), name="reshape_for_conv"),
-            layers.Dropout(0.5, name="dropout_layer"),  # Aggiunta di un layer di dropout per regolarizzazione
+            layers.Dropout(0.2, name="dropout_layer"),  # Aggiunta di un layer di dropout per regolarizzazione
             layers.Conv2D(filters=num_classes, kernel_size=(1, 1), activation='softmax', name="classifier_conv"),
             layers.Flatten(name="final_flatten")
         ], name="Fully_Convolutional_Classifier")
@@ -244,6 +246,7 @@ class ResNet50(Model):
             layers.InputLayer(input_shape=last_layer_output_shape[1:]),
             layers.GlobalAveragePooling2D(name="global_pool"),
             layers.Reshape((1, 1, last_layer_filters), name="reshape_for_conv"),
+            layers.Dropout(0.2, name="dropout_layer"),  # Aggiunta di un layer di dropout per regolarizzazione
             layers.Conv2D(filters=num_classes, kernel_size=(1, 1), activation='softmax', name="classifier_conv"),
             layers.Flatten(name="final_flatten")
         ], name="Fully_Convolutional_Classifier")
@@ -287,8 +290,11 @@ class CustomCNN_Conv1D_Classifier(Model):
         # Il kernel della Conv1D ora usa la dimensione calcolata al volo
         x = layers.Conv1D(filters=32, kernel_size=flattened_size, activation='relu', padding='valid')(x)
 
+        # Aggiungiamo un layer di dropout per regolarizzazione
+        x = layers.Dropout(0.2)(x)
+
         # Il resto del classificatore
-        x = layers.Reshape((32, 1))(x) # Questo 32 è fisso perché è il n° di filtri del layer precedente
+        x = layers.Reshape((32, 1))(x) # Questo 32 è fisso perché è il n° di filtri del layer precedente       
         x = layers.Conv1D(num_classes, 32, activation='softmax', padding='valid')(x)
 
         # Flatten finale per ottenere l'output nella forma corretta (batch, num_classes)
@@ -327,6 +333,7 @@ class CustomCNN_Conv2D_Classifier(Model):
         # Il suo output si adatta automaticamente a qualsiasi dimensione di input.
         x = layers.GlobalAveragePooling2D()(conv_base_output)
 
+        x = layers.Dropout(0.2)(x)
         # L'output di GlobalAveragePooling2D è un vettore (batch, 32).
         # Per usare una Conv2D, dobbiamo dargli di nuovo una dimensione spaziale di 1x1.
         # Otteniamo il numero di filtri (32) dinamicamente.
