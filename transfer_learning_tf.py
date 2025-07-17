@@ -8,6 +8,7 @@ import numpy as np
 import json
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
+from sklearn.utils import class_weight
 from noDense_model import ModelFactory
 
 # Assicuriamoci che la GPU venga usata correttamente
@@ -265,23 +266,39 @@ class TransferLearning:
                 train_ds = self._create_dataset_from_slices(self.all_filepaths[train_idx], self.all_labels[train_idx], shuffle=True)
                 val_ds = self._create_dataset_from_slices(self.all_filepaths[val_idx], self.all_labels[val_idx])
 
+                # <-- MODIFICA: Calcolo dei pesi per il fold di training corrente -->
+                print("Calcolo dei pesi per il bilanciamento del dataset di training del fold...")
+                train_labels_fold = self.all_labels[train_idx]
+                class_labels = np.unique(train_labels_fold)
+                weights = class_weight.compute_class_weight(
+                    'balanced',
+                    classes=class_labels,
+                    y=train_labels_fold
+                )
+                class_weights_fold = dict(zip(class_labels, weights))
+                print(f"Pesi calcolati per il fold: {class_weights_fold}")
+                # <-- FINE MODIFICA -->
+                
                 model = self.get_model(model_name)
                 model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
-                              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+                            loss='sparse_categorical_crossentropy', metrics=['accuracy'])
                 
                 callbacks = [
                     tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=self.early_stop_patience, restore_best_weights=True, verbose=1),
                     tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=self.lr_patience, min_lr=1e-6, verbose=1)
                 ]
-
-                history = model.fit(train_ds, epochs=self.num_epochs, validation_data=val_ds, callbacks=callbacks, verbose=1)
+                
+                # <-- MODIFICA: Passaggio dei pesi al metodo fit() -->
+                history = model.fit(train_ds, epochs=self.num_epochs, validation_data=val_ds, callbacks=callbacks,
+                                    class_weight=class_weights_fold, verbose=1)
+                # <-- FINE MODIFICA -->
                 
                 fold_val_accuracies.append(max(history.history['val_accuracy']))
-                fold_epochs.append(len(history.history['val_loss'])) # <-- Consiglio 1
+                fold_epochs.append(len(history.history['val_loss']))
                 print(f"Fold {fold + 1} - Miglior val_accuracy: {fold_val_accuracies[-1]:.4f} in {fold_epochs[-1]} epoche")
 
             mean_cv_accuracy, std_cv_accuracy = np.mean(fold_val_accuracies), np.std(fold_val_accuracies)
-            optimal_epochs = int(np.mean(fold_epochs)) # <-- Consiglio 1
+            optimal_epochs = int(np.mean(fold_epochs))
             self.final_accuracies[f"{model_name}_CV"] = f"{mean_cv_accuracy:.4f} +/- {std_cv_accuracy:.4f}"
             print(f"\n--- Risultato Cross-Validation per {model_name} ---")
             print(f"Accuratezza media sui {self.k_folds} folds: {mean_cv_accuracy:.4f} (std: {std_cv_accuracy:.4f})")
@@ -289,12 +306,28 @@ class TransferLearning:
 
             print(f"\n--- Avvio Addestramento Finale di {model_name} su tutti i dati ---")
             full_train_ds = self._create_dataset_from_slices(self.all_filepaths, self.all_labels, shuffle=True)
+            
+            # <-- MODIFICA: Calcolo dei pesi per l'intero dataset di training -->
+            print("Calcolo dei pesi per il bilanciamento del dataset completo...")
+            class_labels_final = np.unique(self.all_labels)
+            weights_final = class_weight.compute_class_weight(
+                'balanced',
+                classes=class_labels_final,
+                y=self.all_labels
+            )
+            class_weights_final = dict(zip(class_labels_final, weights_final))
+            print(f"Pesi calcolati per il training finale: {class_weights_final}")
+            # <-- FINE MODIFICA -->
+            
             final_model = self.get_model(model_name)
             final_model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
                                 loss='sparse_categorical_crossentropy', metrics=['accuracy'])
             
-            # Addestra per il numero di epoche ottimale
-            history_final = final_model.fit(full_train_ds, epochs=optimal_epochs, verbose=1)
+            # <-- MODIFICA: Passaggio dei pesi al metodo fit() finale -->
+            history_final = final_model.fit(full_train_ds, epochs=optimal_epochs, 
+                                            class_weight=class_weights_final, verbose=1)
+            # <-- FINE MODIFICA -->
+            
             self.final_model_histories[model_name] = history_final.history
             
             filename = f"{name_to_save}_final_model.keras"
