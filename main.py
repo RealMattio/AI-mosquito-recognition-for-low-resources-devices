@@ -29,17 +29,17 @@ def main():
             val_dir=VAL_PATH,
             test_dir=TEST_PATH,
             num_classes=2,
-            num_epochs=10,
-            early_stop_patience=3,
+            num_epochs=100,
+            early_stop_patience=10,
             learning_rate=0.001,
             k_folds=5,
             lr_patience=5,
             models_dir= f"keras_training/keras_models_{DATE}",
             results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
             image_size=(96, 96),
-            models_names=['CustomCNN'],
-            name_to_save_models=['CustomCNN_noDense_conv2D'],
-            mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
+            # models_names=['CustomCNN'],
+            # name_to_save_models=['CustomCNN_noDense_conv2D'],
+            # mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
         )
         
         trainer.run_transfer_learning()

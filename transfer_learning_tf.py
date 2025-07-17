@@ -8,6 +8,7 @@ import numpy as np
 import json
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
+from noDense_model import ModelFactory
 
 # Assicuriamoci che la GPU venga usata correttamente
 gpus = tf.config.list_physical_devices('GPU')
@@ -40,14 +41,16 @@ class TransferLearning:
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
-        self.models_names = models_names or ['ResNet50', 'MobileNetV2', 'NASNetMobile', 'CustomCNN']
+        self.models_names = models_names or ['ResNet50', 'MobileNetV2', 'NASNetMobile', 'CustomCNN_Conv1D_Classifier', 'CustomCNN_Conv2D_Classifier', 
+                                             'MobileNet']
         self.early_stop_patience = early_stop_patience
         self.k_folds = k_folds
         self.lr_patience = lr_patience
         self.models_dir = models_dir
         self.results_dir = results_dir
         self.mobilenet_alpha = mobilenet_alpha
-        self.name_to_save_models = name_to_save_models or [f"ResNet50_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNetV2_{time.strftime('%Y%m%d_%H%M%S')}", f"NASNetMobile_{time.strftime('%Y%m%d_%H%M%S')}", f"CustomCNN_{time.strftime('%Y%m%d_%H%M%S')}"]
+        self.name_to_save_models = name_to_save_models or [f"ResNet50_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNetV2_{time.strftime('%Y%m%d_%H%M%S')}", f"NASNetMobile_{time.strftime('%Y%m%d_%H%M%S')}", 
+                                                           f"CustomCNN_Conv1D_{time.strftime('%Y%m%d_%H%M%S')}", f"CustomCNN_Conv2D_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNet_{time.strftime('%Y%m%d_%H%M%S')}"]
         os.makedirs(self.models_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
         if len(self.models_names) != len(self.name_to_save_models):
@@ -157,6 +160,7 @@ class TransferLearning:
         return model
 
     def get_model(self, model_name_str):
+        '''
         input_shape = (self.img_height, self.img_width, 3)
         
         # --- NUOVO: Blocco per il modello Custom CNN ---
@@ -195,6 +199,9 @@ class TransferLearning:
         outputs = layers.Dense(self.num_classes, activation='softmax')(x)
         
         return models.Model(inputs, outputs)
+        '''
+        model = ModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes)
+        return model
     
     def evaluate_model(self, model, model_name):
         # ... questo metodo è identico alla versione precedente ...

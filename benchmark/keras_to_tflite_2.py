@@ -2,14 +2,15 @@
 
 import tensorflow as tf
 import os
+from tqdm import tqdm
 
 # --- 1. PARAMETRI DI CONFIGURAZIONE ---
 
 # Percorso del tuo modello Keras salvato
-KERAS_MODEL_PATH = 'keras_training/keras_models_1607/CustomCNN_noDense_conv2D_final_model.keras' # MODIFICA QUESTO
+KERAS_MODEL_PATH = 'mobilenetv2_model.h5' # MODIFICA QUESTO
 
 # Percorso dove salvare il modello TFLite convertito
-TFLITE_MODEL_PATH = 'tflite_models/tflite_models_1607/CustomCNN_noDense_conv2D_quant_int8.tflite' # MODIFICA QUESTO
+TFLITE_MODEL_PATH = 'mobilenetv2_model.tflite' # MODIFICA QUESTO
 
 # Percorso della cartella contenente i dati per la calibrazione
 # (usa un piccolo subset del tuo set di addestramento)
@@ -47,9 +48,9 @@ def representative_dataset_gen():
   )
   
   # Itera per il numero di step di calibrazione
-  for image_batch in dataset.take(NUM_CALIBRATION_STEPS):
+  for image_batch in tqdm(dataset.take(NUM_CALIBRATION_STEPS)):
     # Il convertitore si aspetta una lista o tupla
-    print(f"Fornito un batch di calibrazione di shape: {image_batch.shape}")
+    #print(f"Fornito un batch di calibrazione di shape: {image_batch.shape}")
     yield [image_batch]
 
 
