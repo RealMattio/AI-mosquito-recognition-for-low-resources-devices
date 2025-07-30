@@ -11,6 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.utils import class_weight
 from noDense_model import NoDenseModelFactory
 from dense_model import DenseModelFactory
+from keras.metrics import Precision, Recall, AUC
 
 # Assicuriamoci che la GPU venga usata correttamente
 gpus = tf.config.list_physical_devices('GPU')
@@ -289,7 +290,8 @@ class TransferLearning:
                 
                 model = self.get_model(model_name)
                 model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
-                            loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+                            loss='binary_crossentropy', metrics=['accuracy', tf.keras.metrics.Precision(name='precision'), 
+                                                                 tf.keras.metrics.Recall(name='recall'), tf.keras.metrics.AUC(name='auc')])
                 
                 callbacks = [
                     tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=self.early_stop_patience, restore_best_weights=True, verbose=1),
@@ -329,7 +331,7 @@ class TransferLearning:
             
             final_model = self.get_model(model_name)
             final_model.compile(optimizer=optimizers.Adam(learning_rate=self.learning_rate),
-                                loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+                            loss='binary_crossentropy', metrics=['accuracy'])
             
             # <-- MODIFICA: Passaggio dei pesi al metodo fit() finale -->
             history_final = final_model.fit(full_train_ds, epochs=optimal_epochs, 
@@ -444,6 +446,28 @@ def plot_saved_histories(results_dir, output_filename='final_training_results_fr
     if not all_histories:
         print("Nessun file di history trovato. Impossibile generare il grafico.")
         return
+    
+    # Plot singolo di tutte le storie
+    for name, history in all_histories.items():
+        if 'loss' not in history or 'accuracy' not in history:
+            print(f"ERRORE: Il file {filename} non contiene le chiavi 'loss' o 'accuracy'.")
+            continue
+        fig, ax_loss = plt.subplots(1, 1, figsize=(14, 8))
+        ax_acc = ax_loss.twinx()
+        epochs_range = range(len(history['loss']))
+        ax_loss.set_xlabel('Epoca', fontsize=12)
+        ax_loss.set_ylabel('Loss', fontsize=12)
+        ax_acc.set_ylabel('Accuratezza', fontsize=12)
+        ax_loss.set_title(f'Loss e Accuratezza per {name}', fontsize=16)
+        ax_loss.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+        ax_loss.plot(epochs_range, history['loss'], label=f"{name} Train Loss", linestyle='-', color='red')
+        ax_acc.plot(epochs_range, history['accuracy'], label=f"{name} Train Accuracy", linestyle='--', color='blue')
+        ax_loss.legend(loc='best')
+        plt.tight_layout()
+        output_path = os.path.join(results_dir, f'history_plot_training_{name}.png')
+        plt.savefig(output_path)
+        print(f"Grafico della history di {name} salvato in: {output_path}")
 
     # --- La logica di plotting è la STESSA che hai già corretto ---
     fig, ax_loss = plt.subplots(1, 1, figsize=(14, 8))

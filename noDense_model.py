@@ -11,7 +11,7 @@ class Model(ABC):
 
 # Implementazione MobileNetV2
 class MobileNetV2(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_base_model(self, input_shape=(96, 96, 3), num_classes=2):
         """
         Costruisce un modello basato su MobileNetV2 pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -77,6 +77,72 @@ class MobileNetV2(Model):
             base_model,
             new_classifier
         ], name="Modified_MobileNetV2")
+
+        return model
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+        """
+        Costruisce un modello basato su MobileNetV2 con un classificatore
+        potenziato che combina GAP, GMP e un layer Conv2D intermedio.
+
+        Args:
+            input_shape (tuple): La forma delle immagini di input.
+            num_classes (int): Il numero di classi. Se 2, si usa 'softmax'.
+                            Per classificazione binaria pura, si potrebbe
+                            usare num_classes=1 e 'sigmoid'.
+
+        Returns:
+            Un modello Keras pronto per il fine-tuning.
+        """
+        print("Caricamento della base MobileNetV2 pre-addestrata su ImageNet...")
+        
+        # 1. Definiamo l'input del modello
+        inputs = layers.Input(shape=input_shape)
+
+        # 2. Carichiamo il modello base SENZA il suo classificatore originale
+        base_model = tf.keras.applications.MobileNetV2(
+            input_tensor=inputs,
+            include_top=False,
+            weights='imagenet'
+        )
+
+        # 3. Congeliamo i pesi del modello base
+        base_model.trainable = False
+        print("I pesi della base MobileNetV2 sono stati congelati.")
+
+         # 3. Otteniamo l'output dal modello base
+        x = base_model.output
+        print(f"Forma dell'output della base convoluzionale: {x.shape}")
+
+        # --- INIZIO DEL CLASSIFICATORE RICHIESTO ---
+
+        # 4. Calcola dinamicamente la dimensione per il flatten
+        shape = x.shape
+        flattened_size = shape[1] * shape[2] * shape[3]
+        print(f"Dimensione del vettore appiattito: {flattened_size}")
+
+        # 5. Costruisci il classificatore dinamico
+        # Il Reshape ora usa la dimensione calcolata
+        x = layers.Reshape((flattened_size, 1))(x)
+
+        # Questa Conv1D emula un layer Dense. È molto pesante in termini di parametri.
+        x = layers.Conv1D(filters=16, kernel_size=flattened_size, activation='relu', padding='valid')(x)
+        x = layers.Dropout(0.2)(x)
+
+        # Il resto del classificatore
+        x = layers.Reshape((16, 1))(x)
+        
+        # --- MODIFICA CRUCIALE PER CLASSIFICAZIONE BINARIA ---
+        # Sostituiamo il tuo secondo Conv1D con uno più adatto ai problemi binari
+        # per evitare i problemi di training precedenti.
+        x = layers.Conv1D(filters=1, kernel_size=16, activation='sigmoid', padding='valid')(x)
+
+        # Flatten finale per ottenere l'output nella forma corretta (batch, 1)
+        outputs = layers.Flatten()(x)
+        
+        # --- FINE DEL CLASSIFICATORE RICHIESTO ---
+
+        # 6. Creiamo e compiliamo il modello finale
+        model = models.Model(inputs=inputs, outputs=outputs)
 
         return model
 
