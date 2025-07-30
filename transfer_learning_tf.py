@@ -9,7 +9,8 @@ import json
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
 from sklearn.utils import class_weight
-from noDense_model import ModelFactory
+from noDense_model import NoDenseModelFactory
+from dense_model import DenseModelFactory
 
 # Assicuriamoci che la GPU venga usata correttamente
 gpus = tf.config.list_physical_devices('GPU')
@@ -27,6 +28,7 @@ class TransferLearning:
                  image_size: tuple = (224, 224), # <-- NUOVO PARAMETRO
                  num_classes:int=2, batch_size=32, num_epochs=25,
                  learning_rate=0.001, models_names:list[str]=None,
+                 final_dense_classifier:bool=True,
                  early_stop_patience:int=10, 
                  k_folds:int=5,
                  lr_patience:int=3,
@@ -44,6 +46,7 @@ class TransferLearning:
         self.learning_rate = learning_rate
         self.models_names = models_names or ['ResNet50', 'MobileNetV2', 'NASNetMobile', 'CustomCNN_Conv1D_Classifier', 'CustomCNN_Conv2D_Classifier', 
                                              'MobileNet']
+        self.final_dense_classifier = final_dense_classifier
         self.early_stop_patience = early_stop_patience
         self.k_folds = k_folds
         self.lr_patience = lr_patience
@@ -201,7 +204,12 @@ class TransferLearning:
         
         return models.Model(inputs, outputs)
         '''
-        model = ModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes)
+        if self.final_dense_classifier:
+            # --- Usa la factory per i modelli con classificatore denso finale ---
+            model = DenseModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes)
+        else:
+            # --- Usa la factory per i modelli senza classificatore denso finale ---
+            model = NoDenseModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes)
         return model
     
     def evaluate_model(self, model, model_name):

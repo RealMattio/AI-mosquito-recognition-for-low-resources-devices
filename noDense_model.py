@@ -352,7 +352,7 @@ class CustomCNN_Conv2D_Classifier(Model):
         return model
 
 # Factory per creare i modelli
-class ModelFactory:
+class NoDenseModelFactory:
     @staticmethod
     def create_model(model, input_shape=(96, 96, 3), num_classes=2):
         if model == "MobileNetV2":
@@ -371,5 +371,5 @@ class ModelFactory:
             raise ValueError(f"Tipo di modello sconosciuto: {model}")
 
 # Esempio d'uso:
-# model = ModelFactory.create_model("simple")
+# model = NoDenseModelFactory.create_model("simple")
 # print(model.get_object())
