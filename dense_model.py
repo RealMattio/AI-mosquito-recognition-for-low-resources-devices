@@ -189,7 +189,7 @@ class ResNet50(Model):
         ])
 
 
-        return model.Models
+        return model
 
 # Implementazione Custom CNN con Conv1D come classificatore
 class CustomCNN_Conv1D_Classifier(Model):
@@ -287,6 +287,7 @@ class CustomCNN_Conv2D_Classifier(Model):
 class DenseModelFactory:
     @staticmethod
     def create_model(model, input_shape=(96, 96, 3), num_classes=2):
+        print(f"Tentativo di creazione del modello {model}, con classificatore fully connected...")
         if model == "MobileNetV2":
             return MobileNetV2().get_model(input_shape, num_classes)
         elif model == "NASNetMobile":
