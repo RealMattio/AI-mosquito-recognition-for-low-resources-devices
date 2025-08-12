@@ -1,0 +1,32 @@
+{
+    "classification_report": {
+        "Mosquito": {
+            "precision": 0.6790352504638218,
+            "recall": 0.8840579710144928,
+            "f1-score": 0.7681007345225603,
+            "support": 414.0
+        },
+        "Not_Mosquito": {
+            "precision": 0.9773264052905054,
+            "recall": 0.9228367528991972,
+            "f1-score": 0.9493002982335398,
+            "support": 2242.0
+        },
+        "accuracy": 0.9167921686746988,
+        "macro avg": {
+            "precision": 0.8281808278771636,
+            "recall": 0.903447361956845,
+            "f1-score": 0.8587005163780501,
+            "support": 2656.0
+        },
+        "weighted avg": {
+            "precision": 0.930830720765563,
+            "recall": 0.9167921686746988,
+            "f1-score": 0.9210560891310001,
+            "support": 2656.0
+        }
+    },
+    "confusion_matrix_path": "keras_training/keras_models_1108_performances_and_history/confusion_matrix_NASNetMobile_ClassicDenseClassifier.png",
+    "roc_auc": 0.9624386438954179,
+    "roc_curve_path": "keras_training/keras_models_1108_performances_and_history/roc_curve_NASNetMobile_ClassicDenseClassifier.png"
+}

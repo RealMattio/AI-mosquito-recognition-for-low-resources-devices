@@ -25,35 +25,35 @@ class MobileNetV2(Model):
         """
         print("Caricamento della base MobileNetV2 pre-addestrata su ImageNet...")
 
-        # 1. Istanzia il modello base MobileNetV2 pre-addestrato
+        # 1. Istanzia il modello base pre-addestrato
         base_model = tf.keras.applications.MobileNetV2(
             input_shape=input_shape,
-            include_top=False, # Non includere il classificatore originale
+            include_top=False,
             weights='imagenet'
         )
-
-        # 2. Congela i pesi del modello base
         base_model.trainable = False
 
-        # 3. Costruisci il modello finale con l'API Sequential
-        model = models.Sequential([
-            # Definisce l'input del modello
-            tf.keras.Input(shape=input_shape),
-            
-            # Aggiunge il preprocessing specifico di MobileNetV2 come un layer
-            layers.Lambda(tf.keras.applications.mobilenet_v2.preprocess_input),
-            
-            # Aggiunge il modello base congelato
-            base_model,
-            
-            # Aggiunge il nuovo classificatore in cima
-            layers.GlobalAveragePooling2D(),
-            layers.Dropout(0.2),
-            layers.Dense(num_classes, activation='softmax')
-        ])
+        # 2. Definisci il flusso del modello con l'API Funzionale
+        # Questo è il punto di ingresso del nostro grafo
+        inputs = tf.keras.Input(shape=input_shape)
+        
+        # Applica il preprocessing direttamente come una funzione
+        # Non c'è più bisogno del Lambda layer!
+        x = tf.keras.applications.mobilenet_v2.preprocess_input(inputs)
+
+        # Passa l'input preprocessato al modello base
+        # È buona norma specificare training=False quando si usa un modello freezato
+        x = base_model(x, training=False)
+
+        # Aggiungi il nuovo classificatore
+        x = layers.GlobalAveragePooling2D()(x)
+        x = layers.Dropout(0.2)(x)
+        outputs = layers.Dense(num_classes, activation='softmax')(x)
+
+        # 3. Crea il modello finale specificando input e output
+        model = tf.keras.Model(inputs, outputs)
 
         return model
-
 # Implementazione MobileNet
 class MobileNet(Model):
     def get_model(self, input_shape=(96, 96, 3), num_classes=2):
@@ -70,32 +70,33 @@ class MobileNet(Model):
         """
         print("Caricamento della base MobileNet pre-addestrata su ImageNet...")
 
-        # 1. Istanzia il modello base MobileNet pre-addestrato
+        # 1. Istanzia il modello base pre-addestrato
         base_model = tf.keras.applications.MobileNet(
             input_shape=input_shape,
-            include_top=False, # Non includere il classificatore originale
+            include_top=False,
             weights='imagenet'
         )
-
-        # 2. Congela i pesi del modello base
         base_model.trainable = False
 
-        # 3. Costruisci il modello finale con l'API Sequential
-        model = models.Sequential([
-            # Definisce l'input del modello
-            tf.keras.Input(shape=input_shape),
-            
-            # Aggiunge il preprocessing specifico di MobileNet come un layer
-            layers.Lambda(tf.keras.applications.mobilenet.preprocess_input),
-            
-            # Aggiunge il modello base congelato
-            base_model,
-            
-            # Aggiunge il nuovo classificatore in cima
-            layers.GlobalAveragePooling2D(),
-            layers.Dropout(0.2),
-            layers.Dense(num_classes, activation='softmax')
-        ])
+        # 2. Definisci il flusso del modello con l'API Funzionale
+        # Questo è il punto di ingresso del nostro grafo
+        inputs = tf.keras.Input(shape=input_shape)
+        
+        # Applica il preprocessing direttamente come una funzione
+        # Non c'è più bisogno del Lambda layer!
+        x = tf.keras.applications.mobilenet.preprocess_input(inputs)
+
+        # Passa l'input preprocessato al modello base
+        # È buona norma specificare training=False quando si usa un modello freezato
+        x = base_model(x, training=False)
+
+        # Aggiungi il nuovo classificatore
+        x = layers.GlobalAveragePooling2D()(x)
+        x = layers.Dropout(0.2)(x)
+        outputs = layers.Dense(num_classes, activation='softmax')(x)
+
+        # 3. Crea il modello finale specificando input e output
+        model = tf.keras.Model(inputs, outputs)
 
         return model
 
@@ -115,32 +116,33 @@ class NASNetMobile(Model):
         """
         print("Caricamento della base NASNetMobile pre-addestrata su ImageNet...")
 
-        # 1. Istanzia il modello base NASNetMobile pre-addestrato
+        # 1. Istanzia il modello base pre-addestrato
         base_model = tf.keras.applications.NASNetMobile(
             input_shape=input_shape,
-            include_top=False, # Non includere il classificatore originale
+            include_top=False,
             weights='imagenet'
         )
-
-        # 2. Congela i pesi del modello base
         base_model.trainable = False
 
-        # 3. Costruisci il modello finale con l'API Sequential
-        model = models.Sequential([
-            # Definisce l'input del modello
-            tf.keras.Input(shape=input_shape),
-            
-            # Aggiunge il preprocessing specifico di NASNetMobile come un layer
-            layers.Lambda(tf.keras.applications.nasnet.preprocess_input),
-            
-            # Aggiunge il modello base congelato
-            base_model,
-            
-            # Aggiunge il nuovo classificatore in cima
-            layers.GlobalAveragePooling2D(),
-            layers.Dropout(0.2),
-            layers.Dense(num_classes, activation='softmax')
-        ])
+        # 2. Definisci il flusso del modello con l'API Funzionale
+        # Questo è il punto di ingresso del nostro grafo
+        inputs = tf.keras.Input(shape=input_shape)
+        
+        # Applica il preprocessing direttamente come una funzione
+        # Non c'è più bisogno del Lambda layer!
+        x = tf.keras.applications.nasnet.preprocess_input(inputs)
+
+        # Passa l'input preprocessato al modello base
+        # È buona norma specificare training=False quando si usa un modello freezato
+        x = base_model(x, training=False)
+
+        # Aggiungi il nuovo classificatore
+        x = layers.GlobalAveragePooling2D()(x)
+        x = layers.Dropout(0.2)(x)
+        outputs = layers.Dense(num_classes, activation='softmax')(x)
+
+        # 3. Crea il modello finale specificando input e output
+        model = tf.keras.Model(inputs, outputs)
 
         return model
 
@@ -148,8 +150,8 @@ class NASNetMobile(Model):
 class ResNet50(Model):
     def get_model(self, input_shape=(96, 96, 3), num_classes=2):
         """
-        Costruisce un modello basato su ResNet50 pre-addestrata,
-        sostituendo il classificatore finale con uno basato su Conv2D 1x1.
+        Costruisce un modello basato su ResNet50 usando l'API Funzionale,
+        ottimale per la conversione a TFLite.
 
         Args:
             input_shape (tuple): La forma delle immagini di input.
@@ -160,34 +162,33 @@ class ResNet50(Model):
         """
         print("Caricamento della base ResNet50 pre-addestrata su ImageNet...")
 
-        # 1. Istanzia il modello base pre-addestrato, senza il classificatore originale
+        # 1. Istanzia il modello base pre-addestrato
         base_model = tf.keras.applications.ResNet50(
             input_shape=input_shape,
-            include_top=False, # Non includere il classificatore originale
+            include_top=False,
             weights='imagenet'
         )
-
-        # 2. Congela i pesi del modello base
-        # I suoi pesi non verranno aggiornati durante l'addestramento.
         base_model.trainable = False
 
-        # 3. Costruisci il modello finale con l'API Sequential
-        model = models.Sequential([
-            # Definisce l'input del modello
-            tf.keras.Input(shape=input_shape),
-            
-            # Aggiunge il preprocessing specifico di ResNet50 come un layer
-            layers.Lambda(tf.keras.applications.resnet50.preprocess_input),
-            
-            # Aggiunge il modello base congelato
-            base_model,
-            
-            # Aggiunge il nuovo classificatore in cima
-            layers.GlobalAveragePooling2D(),
-            layers.Dropout(0.2),
-            layers.Dense(num_classes, activation='softmax')
-        ])
+        # 2. Definisci il flusso del modello con l'API Funzionale
+        # Questo è il punto di ingresso del nostro grafo
+        inputs = tf.keras.Input(shape=input_shape)
+        
+        # Applica il preprocessing direttamente come una funzione
+        # Non c'è più bisogno del Lambda layer!
+        x = tf.keras.applications.resnet50.preprocess_input(inputs)
 
+        # Passa l'input preprocessato al modello base
+        # È buona norma specificare training=False quando si usa un modello freezato
+        x = base_model(x, training=False)
+
+        # Aggiungi il nuovo classificatore
+        x = layers.GlobalAveragePooling2D()(x)
+        x = layers.Dropout(0.2)(x)
+        outputs = layers.Dense(num_classes, activation='softmax')(x)
+
+        # 3. Crea il modello finale specificando input e output
+        model = tf.keras.Model(inputs, outputs)
 
         return model
 

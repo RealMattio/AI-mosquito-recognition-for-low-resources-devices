@@ -7,10 +7,10 @@ from tqdm import tqdm
 # --- 1. PARAMETRI DI CONFIGURAZIONE ---
 
 # Percorso del tuo modello Keras salvato
-KERAS_MODEL_PATH = 'mobilenetv2_model.h5' # MODIFICA QUESTO
+KERAS_MODEL_PATH = 'keras_training/keras_models_1108/NASNetMobile_ClassicDenseClassifier_final_model.keras' # MODIFICA QUESTO
 
 # Percorso dove salvare il modello TFLite convertito
-TFLITE_MODEL_PATH = 'mobilenetv2_model.tflite' # MODIFICA QUESTO
+TFLITE_MODEL_PATH = 'tflite_models/tflite_models_1108/NASNetMobile_ClassicDenseClassifier_final_model.tflite' # MODIFICA QUESTO
 
 # Percorso della cartella contenente i dati per la calibrazione
 # (usa un piccolo subset del tuo set di addestramento)

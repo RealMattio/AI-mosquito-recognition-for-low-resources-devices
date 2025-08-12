@@ -37,8 +37,14 @@ def main():
             models_dir= f"keras_training/keras_models_{DATE}",
             results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
             image_size=(96, 96),
-            models_names=['ResNet50'],
-            name_to_save_models=['ResNet50_ClassicDenseClassifier'],
+            models_names=['ResNet50', 
+                          'MobileNetV2', 
+                          'NASNetMobile', 
+                          'MobileNet'], #, 'CustomCNN'],
+            name_to_save_models=['ResNet50_ClassicDenseClassifier',
+                                 'MobileNetV2_ClassicDenseClassifier',
+                                 'NASNetMobile_ClassicDenseClassifier',
+                                 'MobileNet_ClassicDenseClassifier'], #, 'CustomCNN_ClassicDenseClassifier'],
             final_dense_classifier=True,
             # mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
         )
@@ -47,15 +53,15 @@ def main():
         trainer.save_training_results(output_filename=f'final_training_results_{DATE}.png', show_plots=False)
     
 if __name__ == "__main__":
-    # main()
+    main()
     
     # plot_saved_histories(
     #     results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
     #     output_filename=f'final_training_results_{DATE}.png',
     #     show_plots=False)
-    plot_saved_histories(
-        results_dir=f"keras_training/keras_models_3007_performances_and_history",
-        output_filename=f'final_training_results_3007.png',
-        show_plots=False)
+    # plot_saved_histories(
+    #     results_dir=f"keras_training/keras_models_3007_performances_and_history",
+    #     output_filename=f'final_training_results_3007.png',
+    #     show_plots=False)
     
     print("☑️  ☑️  ☑️ Esecuzione completata con successo! ☑️  ☑️  ☑️")
