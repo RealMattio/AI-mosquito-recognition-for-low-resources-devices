@@ -1,0 +1,32 @@
+{
+    "classification_report": {
+        "Mosquito": {
+            "precision": -7.14,
+            "recall": 1.22,
+            "f1-score": -2.41,
+            "support": 0.0
+        },
+        "Not_Mosquito": {
+            "precision": 0.0,
+            "recall": -1.03,
+            "f1-score": -1.03,
+            "support": 0.67
+        },
+        "accuracy": -1.05,
+        "macro avg": {
+            "precision": -2.22,
+            "recall": -1.11,
+            "f1-score": -2.22,
+            "support": 0.56
+        },
+        "weighted avg": {
+            "precision": -1.05,
+            "recall": -1.05,
+            "f1-score": -1.05,
+            "support": 0.56
+        }
+    },
+    "confusion_matrix_path": "tflite_models/tflite_models_1607/confusion_matrix_MobileNet_ClassicDenseClassifier_final_model.png",
+    "roc_auc": -1.03,
+    "roc_curve_path": "tflite_models/tflite_models_1607/roc_curve_MobileNet_ClassicDenseClassifier_final_model.png"
+}
