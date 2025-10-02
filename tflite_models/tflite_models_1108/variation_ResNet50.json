@@ -1,32 +1,32 @@
 {
     "classification_report": {
         "Mosquito": {
-            "precision": -3.1865241737308834,
-            "recall": -6.7183462532299805,
-            "f1-score": -4.880816573397886,
+            "precision": -3.61,
+            "recall": -6.45,
+            "f1-score": -4.55,
             "support": 0.0
         },
         "Not_Mosquito": {
-            "precision": -1.166746355634175,
-            "recall": -0.38905006277280757,
-            "f1-score": -0.7748596548107518,
-            "support": 0.6690454950936664
+            "precision": -1.01,
+            "recall": 0.0,
+            "f1-score": -1.02,
+            "support": 0.67
         },
-        "accuracy": -1.3414965387128241,
+        "accuracy": -1.04,
         "macro avg": {
-            "precision": -2.08931890483498,
-            "recall": -3.503749755158958,
-            "f1-score": -2.72103356275199,
-            "support": 0.5647590361445783
+            "precision": -2.2,
+            "recall": -3.16,
+            "f1-score": -3.23,
+            "support": 0.56
         },
         "weighted avg": {
-            "precision": -1.4225573224298196,
-            "recall": -1.3414965387128241,
-            "f1-score": -1.348586074440057,
-            "support": 0.5647590361445783
+            "precision": -1.04,
+            "recall": -1.04,
+            "f1-score": -1.04,
+            "support": 0.56
         }
     },
     "confusion_matrix_path": "tflite_models/tflite_models_1108/confusion_matrix_ResNet50_ClassicDenseClassifier_final_model.png",
-    "roc_auc": -3.4644108212143476,
+    "roc_auc": -4.04,
     "roc_curve_path": "tflite_models/tflite_models_1108/roc_curve_ResNet50_ClassicDenseClassifier_final_model.png"
 }
