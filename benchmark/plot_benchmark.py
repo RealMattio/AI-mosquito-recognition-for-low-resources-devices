@@ -113,7 +113,7 @@ def create_all_benchmark_plots(json_path: str, output_prefix: str):
 
     # --- 4. Creazione Grafico 3: Combinato ---
     print("Creazione grafico combinato...")
-    fig_combined, axes = plt.subplots(1, 2, figsize=(20, 7))
+    fig_combined, axes = plt.subplots(1, 2, figsize=(20, 5))
     fig_combined.suptitle(main_title, fontsize=20)
     
     create_single_boxplot(axes[1], df_keras, "Performance Modelli Keras (Originali)", "autumn")
@@ -159,4 +159,4 @@ if __name__ == '__main__':
 
 # Esempio di utilizzo:
 # python benchmark/plot_benchmark.py benchmark/benchmark_results/benchmark_results_models_1108_on_WSL.json --prefix benchmark/benchmark_results_grafici/benchmark_results_WSL
-# python benchmark/plot_benchmark.py benchmark/benchmark_results/benchmark_results_models_1108_on_RaspPi5.json --prefix benchmark/benchmark_results_grafici/benchmark_results_Pi5
+# python benchmark/plot_benchmark.py benchmark/benchmark_results/benchmark_results_models_1108_on_RaspPi5.json --prefix benchmark/benchmark_results_grafici/new_benchmark_results_Pi5

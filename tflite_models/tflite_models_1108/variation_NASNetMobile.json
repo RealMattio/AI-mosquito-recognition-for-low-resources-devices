@@ -1,32 +1,32 @@
 {
     "classification_report": {
         "Mosquito": {
-            "precision": -5.88,
-            "recall": 1.14,
-            "f1-score": -3.9,
+            "precision": -6.07,
+            "recall": 0.54,
+            "f1-score": -3.31,
             "support": 0.0
         },
         "Not_Mosquito": {
-            "precision": 0.0,
-            "recall": -1.09,
-            "f1-score": -1.05,
+            "precision": 0.07,
+            "recall": -1.67,
+            "f1-score": -0.83,
             "support": 0.67
         },
-        "accuracy": -2.17,
+        "accuracy": -1.34,
         "macro avg": {
-            "precision": -2.41,
-            "recall": 0.0,
-            "f1-score": -2.33,
+            "precision": -2.45,
+            "recall": -0.59,
+            "f1-score": -1.94,
             "support": 0.56
         },
         "weighted avg": {
-            "precision": 0.0,
-            "recall": -2.17,
-            "f1-score": -1.09,
+            "precision": -0.59,
+            "recall": -1.34,
+            "f1-score": -1.14,
             "support": 0.56
         }
     },
     "confusion_matrix_path": "tflite_models/tflite_models_1108/confusion_matrix_NASNetMobile_ClassicDenseClassifier_final_model.png",
-    "roc_auc": 0.0,
+    "roc_auc": -0.71,
     "roc_curve_path": "tflite_models/tflite_models_1108/roc_curve_NASNetMobile_ClassicDenseClassifier_final_model.png"
 }

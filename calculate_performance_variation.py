@@ -15,8 +15,8 @@ def round_values_recursively(data: Any) -> Any:
          # Se è una lista, applica la ricorsione a ogni suo elemento
         return [round_values_recursively(item) for item in data]
     elif isinstance(data, float):
-        # Se è un float, arrotondalo a 2 cifre decimali
-        return round(data, 2)
+        # Se è un float, arrotondalo a 4 cifre decimali
+        return round(data, 4)
     else:
         # Per tutti gli altri tipi (int, str, etc.), restituisci il valore com'è
         return data
