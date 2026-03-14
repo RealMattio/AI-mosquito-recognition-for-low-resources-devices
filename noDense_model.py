@@ -11,7 +11,7 @@ class Model(ABC):
 
 # Implementazione MobileNetV2
 class MobileNetV2(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su MobileNetV2 pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -38,16 +38,16 @@ class MobileNetV2(Model):
         ], name="MobileNetV2_Base")
 
 
-        # 2. Congeliamo i pesi del modello base.
-        #    Non vogliamo riaddestrare la parte che ha già imparato da ImageNet.
-        base_model.trainable = False
-        print("I pesi della base MobileNetV2 sono stati congelati.")
+        # 2. Congeliamo o scongeliamo i pesi del modello base.
+        base_model.trainable = not freeze_base
+        stato = "congelati" if freeze_base else "scongelati (fine-tuning abilitato)"
+        print(f"I pesi della base MobileNetV2 sono stati {stato}.")
 
         # 3. Otteniamo l'output del modello base
         #    L'output ha una forma del tipo (None, 3, 3, 1280)
         last_layer_output_shape = base_model.output_shape
         print(f"L'output della base convoluzionale ha forma: {last_layer_output_shape}")
-        
+
         # Estraiamo il numero di filtri dell'ultimo layer (es. 1280 per MobileNetV2)
         last_layer_filters = last_layer_output_shape[-1]
 
@@ -82,7 +82,7 @@ class MobileNetV2(Model):
 
 # Implementazione MobileNet
 class MobileNet(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su MobileNet pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -109,10 +109,10 @@ class MobileNet(Model):
         ], name="MobileNetV2_Base")
 
 
-        # 2. Congeliamo i pesi del modello base.
-        #    Non vogliamo riaddestrare la parte che ha già imparato da ImageNet.
-        base_model.trainable = False
-        print("I pesi della base MobileNet sono stati congelati.")
+        # 2. Congeliamo o scongeliamo i pesi del modello base.
+        base_model.trainable = not freeze_base
+        stato = "congelati" if freeze_base else "scongelati (fine-tuning abilitato)"
+        print(f"I pesi della base MobileNet sono stati {stato}.")
 
         # 3. Otteniamo l'output del modello base
         #    L'output ha una forma del tipo (None, 3, 3, 1280)
@@ -154,7 +154,7 @@ class MobileNet(Model):
 
 # Implementazione NASNetMobile
 class NASNetMobile(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su NASNetMobile pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -178,9 +178,10 @@ class NASNetMobile(Model):
             )
         ], name="NASNetMobile_Base")
 
-        # 2. Congeliamo i pesi del modello base
-        base_model.trainable = False
-        print("I pesi della base NASNetMobile sono stati congelati.")
+        # 2. Congeliamo o scongeliamo i pesi del modello base.
+        base_model.trainable = not freeze_base
+        stato = "congelati" if freeze_base else "scongelati (fine-tuning abilitato)"
+        print(f"I pesi della base NASNetMobile sono stati {stato}.")
 
         # 3. Otteniamo dinamicamente le informazioni sull'output della base
         last_layer_output_shape = base_model.output_shape
@@ -207,7 +208,7 @@ class NASNetMobile(Model):
 
 # Implementazione ResNet50
 class ResNet50(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su ResNet50 pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -232,9 +233,10 @@ class ResNet50(Model):
         ], name="ResNet50_Base")
 
 
-        # 2. Congeliamo i pesi del modello base
-        base_model.trainable = False
-        print("I pesi della base ResNet50 sono stati congelati.")
+        # 2. Congeliamo o scongeliamo i pesi del modello base.
+        base_model.trainable = not freeze_base
+        stato = "congelati" if freeze_base else "scongelati (fine-tuning abilitato)"
+        print(f"I pesi della base ResNet50 sono stati {stato}.")
 
         # 3. Otteniamo dinamicamente le informazioni sull'output della base
         last_layer_output_shape = base_model.output_shape
@@ -354,15 +356,15 @@ class CustomCNN_Conv2D_Classifier(Model):
 # Factory per creare i modelli
 class ModelFactory:
     @staticmethod
-    def create_model(model, input_shape=(96, 96, 3), num_classes=2):
+    def create_model(model, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         if model == "MobileNetV2":
-            return MobileNetV2().get_model(input_shape, num_classes)
+            return MobileNetV2().get_model(input_shape, num_classes, freeze_base)
         elif model == "NASNetMobile":
-            return NASNetMobile().get_model(input_shape, num_classes)
+            return NASNetMobile().get_model(input_shape, num_classes, freeze_base)
         elif model == "ResNet50":
-            return ResNet50().get_model(input_shape, num_classes)
+            return ResNet50().get_model(input_shape, num_classes, freeze_base)
         elif model == "MobileNet":
-            return MobileNet().get_model(input_shape, num_classes)
+            return MobileNet().get_model(input_shape, num_classes, freeze_base)
         elif model == "CustomCNN_Conv1D_Classifier":
             return CustomCNN_Conv1D_Classifier().get_model(input_shape, num_classes)
         elif model == "CustomCNN_Conv2D_Classifier":

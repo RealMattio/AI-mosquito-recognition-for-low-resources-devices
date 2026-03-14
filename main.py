@@ -2,11 +2,20 @@
 from transfer_learning_tf import TransferLearning, plot_saved_histories
 import os
 import datetime
+import argparse
 
 # clacola la data corrente per il salvataggio dei risultati - data in formato DDMM
 DATE = datetime.datetime.now().strftime("%d%m")
 
 def main():
+    parser = argparse.ArgumentParser(description="Training mosquito recognition model")
+    parser.add_argument(
+        '--unfreeze',
+        action='store_true',
+        default=False,
+        help="Scongela i pesi della base pre-addestrata per abilitare il fine-tuning completo (default: pesi congelati)"
+    )
+    args = parser.parse_args()
     """ # Inizializza il preprocessore delle immagini
     preprocessor = ImagePreprocessor(target_size=(224, 224), mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
@@ -37,6 +46,7 @@ def main():
             models_dir= f"keras_training/keras_models_{DATE}",
             results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
             image_size=(96, 96),
+            freeze_base=not args.unfreeze,
             # models_names=['CustomCNN'],
             # name_to_save_models=['CustomCNN_noDense_conv2D'],
             # mobilenet_alpha=0.75  # Ridotto per risparmiare memoria

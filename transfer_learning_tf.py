@@ -27,13 +27,14 @@ class TransferLearning:
                  image_size: tuple = (224, 224), # <-- NUOVO PARAMETRO
                  num_classes:int=2, batch_size=32, num_epochs=25,
                  learning_rate=0.001, models_names:list[str]=None,
-                 early_stop_patience:int=10, 
+                 early_stop_patience:int=10,
                  k_folds:int=5,
                  lr_patience:int=3,
                  models_dir:str='keras_models',
                  results_dir:str='keras_models_performances',
                  mobilenet_alpha: float = 1.0,
-                 name_to_save_models:list[str] = None):
+                 name_to_save_models:list[str] = None,
+                 freeze_base: bool = True):
         
         self.train_dir = train_dir
         self.val_dir = val_dir
@@ -50,6 +51,7 @@ class TransferLearning:
         self.models_dir = models_dir
         self.results_dir = results_dir
         self.mobilenet_alpha = mobilenet_alpha
+        self.freeze_base = freeze_base
         self.name_to_save_models = name_to_save_models or [f"ResNet50_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNetV2_{time.strftime('%Y%m%d_%H%M%S')}", f"NASNetMobile_{time.strftime('%Y%m%d_%H%M%S')}", 
                                                            f"CustomCNN_Conv1D_{time.strftime('%Y%m%d_%H%M%S')}", f"CustomCNN_Conv2D_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNet_{time.strftime('%Y%m%d_%H%M%S')}"]
         os.makedirs(self.models_dir, exist_ok=True)
@@ -201,7 +203,7 @@ class TransferLearning:
         
         return models.Model(inputs, outputs)
         '''
-        model = ModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes)
+        model = ModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes, self.freeze_base)
         return model
     
     def evaluate_model(self, model, model_name):
