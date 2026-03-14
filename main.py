@@ -39,16 +39,25 @@ def main():
             test_dir=TEST_PATH,
             num_classes=2,
             num_epochs=100,
-            early_stop_patience=10,
-            learning_rate=0.001,
+            early_stop_patience=20,
+            learning_rate=0.002,
             k_folds=5,
-            lr_patience=5,
+            lr_patience=10,
             models_dir= f"keras_training/keras_models_{DATE}",
             results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
             image_size=(96, 96),
             freeze_base=not args.unfreeze,
             # models_names=['CustomCNN'],
             # name_to_save_models=['CustomCNN_noDense_conv2D'],
+            models_names=['ResNet50', 
+                          'MobileNetV2', 
+                          'NASNetMobile', 
+                          'MobileNet'], #, 'CustomCNN'],
+            name_to_save_models=['ResNet50_ClassicDenseClassifier',
+                                 'MobileNetV2_ClassicDenseClassifier',
+                                 'NASNetMobile_ClassicDenseClassifier',
+                                 'MobileNet_ClassicDenseClassifier'], #, 'CustomCNN_ClassicDenseClassifier'],
+            final_dense_classifier=True,
             # mobilenet_alpha=0.75  # Ridotto per risparmiare memoria
         )
         
@@ -57,9 +66,14 @@ def main():
     
 if __name__ == "__main__":
     main()
-    '''
-    plot_saved_histories(
-        results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
-        output_filename=f'final_training_results_{DATE}.png',
-        show_plots=False)
-        '''
+    
+    # plot_saved_histories(
+    #     results_dir=f"keras_training/keras_models_{DATE}_performances_and_history",
+    #     output_filename=f'final_training_results_{DATE}.png',
+    #     show_plots=False)
+    # plot_saved_histories(
+    #     results_dir=f"keras_training/keras_models_3007_performances_and_history",
+    #     output_filename=f'final_training_results_3007.png',
+    #     show_plots=False)
+    
+    print("☑️  ☑️  ☑️ Esecuzione completata con successo! ☑️  ☑️  ☑️")

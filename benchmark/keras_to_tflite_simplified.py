@@ -1,5 +1,6 @@
 # converter.py
-# Data: 9 luglio 2025
+# Data: 11 agosto 2025
+# Luogo: Latina, Lazio, Italia
 
 import os
 import tensorflow as tf
@@ -7,19 +8,16 @@ import numpy as np
 import argparse
 
 # --- CONFIGURAZIONE ---
-# NOTA: Devi comunque specificare un percorso per i dati di validazione
-# che servono per la calibrazione della quantizzazione.
-VALIDATION_DATA_DIR = 'augmented_dataset_splitted/train' 
+VALIDATION_DATA_DIR = 'augmented_dataset_splitted/validation' 
 IMG_SIZE = (96, 96)
-NUM_CALIBRATION_SAMPLES = 50
+NUM_CALIBRATION_SAMPLES = 100
 
-# Dizionario con le funzioni di preprocessing per la calibrazione
+# Dizionario con le funzioni di preprocessing per la calibrazione e il caricamento
 PREPROCESS_FUNCTIONS = {
     'MobileNetV2': tf.keras.applications.mobilenet_v2.preprocess_input,
     'ResNet50': tf.keras.applications.resnet50.preprocess_input,
     'NASNetMobile': tf.keras.applications.nasnet.preprocess_input,
-    'SeparableCustomCNN': lambda x: x / 255.0,
-    'CustomCNN': lambda x: x / 255.0
+    'MobileNet': tf.keras.applications.mobilenet.preprocess_input,
 }
 
 def convert_single_model(source_dir, model_name, dest_dir):
@@ -28,7 +26,7 @@ def convert_single_model(source_dir, model_name, dest_dir):
     """
     print(f"--- Inizio processo per il modello: {model_name} ---")
 
-    # 1. Trova e carica il modello Keras
+    # 1. Trova il modello Keras
     keras_model_path = None
     try:
         for f in os.listdir(source_dir):
@@ -39,39 +37,48 @@ def convert_single_model(source_dir, model_name, dest_dir):
             raise FileNotFoundError(f"Nessun file .keras che inizia con '{model_name}' trovato in '{source_dir}'")
 
         print(f"Trovato modello Keras: {keras_model_path}")
-        print("Caricamento del modello...")
-        model = tf.keras.models.load_model(keras_model_path)
+        
+        # --- MODIFICA CHIAVE: Uso di custom_objects per caricare il modello ---
+        
+        # 1a. Trova la funzione di preprocessing corretta dal nostro dizionario
+        base_model_name = model_name.split('_')[0]
+        if base_model_name not in PREPROCESS_FUNCTIONS:
+            raise ValueError(f"Funzione di preprocessing non definita per {base_model_name}")
+            
+        preprocess_function = PREPROCESS_FUNCTIONS[base_model_name]
+
+        # 1b. Crea il dizionario per gli oggetti custom.
+        # La chiave 'preprocess_input' deve corrispondere al nome che Keras ha salvato.
+        custom_objects = {'preprocess_input': preprocess_function}
+        
+        print("Caricamento del modello con custom_objects per il Lambda layer...")
+        # 1c. Passa il dizionario a load_model
+        model = tf.keras.models.load_model(keras_model_path, custom_objects=custom_objects)
         print("Modello caricato con successo!")
+        # --- FINE MODIFICA ---
 
     except Exception as e:
         print(f"\nERRORE: Impossibile caricare il modello Keras.")
         print(f"Dettagli: {e}")
-        #print("Questo è probabilmente un problema di incompatibilità di versione tra quando il modello è stato salvato e l'ambiente attuale.")
         return
 
-    # 2. Prepara il dataset di calibrazione per la quantizzazione
+    # 2. Prepara il dataset di calibrazione (codice invariato)
     print(f"Preparazione di {NUM_CALIBRATION_SAMPLES} campioni di calibrazione da '{VALIDATION_DATA_DIR}'...")
     try:
         calibration_ds = tf.keras.utils.image_dataset_from_directory(
             VALIDATION_DATA_DIR,
             label_mode='int', seed=123, image_size=IMG_SIZE, batch_size=1
-        )
-        #).take(NUM_CALIBRATION_SAMPLES)
+        ).take(NUM_CALIBRATION_SAMPLES)
     except FileNotFoundError:
         print(f"ERRORE: Cartella dei dati di validazione non trovata: '{VALIDATION_DATA_DIR}'.")
         return
 
     def representative_data_gen():
-        # Assicurati che il nome del modello sia nel dizionario
-        base_model_name = model_name.split('_')[0]
-        if base_model_name not in PREPROCESS_FUNCTIONS:
-             raise ValueError(f"Funzione di preprocessing non trovata per {base_model_name}")
-        
-        preprocess_function = PREPROCESS_FUNCTIONS[base_model_name]
         for images, _ in calibration_ds:
-            #yield [preprocess_function(tf.cast(images, tf.float32))]
-            yield [images]
-            
+            # Non abbiamo più bisogno di applicare il preprocessing qui, perché il modello
+            # Keras che abbiamo caricato lo ha già al suo interno.
+            yield [tf.cast(images, tf.float32)]
+
     # 3. Configura il convertitore e converti in TFLite INT8
     print("Avvio conversione e quantizzazione INT8...")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -100,7 +107,7 @@ def convert_single_model(source_dir, model_name, dest_dir):
     print(f"Dimensione file: {os.path.getsize(output_path) / 1024:.2f} KB")
 
 if __name__ == '__main__':
-    # Configura gli argomenti da riga di comando
+    # Configura gli argomenti da riga di comando (invariato)
     parser = argparse.ArgumentParser(description="Converti un singolo modello Keras in formato TFLite con quantizzazione INT8.")
     parser.add_argument('--source_dir', type=str, required=True, help="La cartella sorgente contenente il modello .keras.")
     parser.add_argument('--model_name', type=str, required=True, help="Il nome base del modello da cercare e convertire (es. 'ResNet50').")
@@ -108,7 +115,6 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    # Esegui la funzione di conversione
     convert_single_model(args.source_dir, args.model_name, args.dest_dir)
 
 '''

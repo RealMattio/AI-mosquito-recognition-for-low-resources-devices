@@ -15,13 +15,13 @@ except ImportError:
     pynvml = None
 
 # --- CONFIGURAZIONE ---
-KERAS_MODELS_DIR = 'keras_training/keras_models_2506'
-TFLITE_MODELS_DIR = 'tflite_models/tflite_models_2506'
+KERAS_MODELS_DIR = 'keras_training/keras_models_1108'
+TFLITE_MODELS_DIR = 'tflite_models/tflite_models_1108'
 IMAGE_PATH = 'benchmark/original_00000_original.png' # Percorso dell'immagine di TEST copiata nella cartella benchmark
-RESULTS_JSON_PATH = 'benchmark/benchmark_results_Raspberry_Pi_5.json'
+RESULTS_JSON_PATH = 'benchmark/benchmark_results/benchmark_results_models_1108_on_WSL.json'
 
 NUM_INFERENCE_RUNS = 50
-IMG_SIZE = (224, 224)
+IMG_SIZE = (96, 96)
 
 # Forza l'uso di Keras 3 perché i modelli sono addestrati con Keras 3.
 # Questa linea è FONDAMENTALE per aumentare la probabilità che tf.keras.models.load_model
@@ -140,7 +140,7 @@ def benchmark_keras_model(model_path, image_data):
     }
 
 def benchmark_tflite_model(model_path, image_data):
-    """Esegue il benchmark su un modello TFLite (invariato)."""
+    """Esegue il benchmark su un modello TFLite, gestendo diversi tipi di input."""
     print(f"\n--- Benchmark TFLite: {os.path.basename(model_path)} ---")
     try:
         interpreter = tf.lite.Interpreter(model_path=model_path)
@@ -151,14 +151,28 @@ def benchmark_tflite_model(model_path, image_data):
         return None
 
     input_details = interpreter.get_input_details()[0]
+    input_type = input_details['dtype'] # Otteniamo il tipo di dati atteso (es. np.uint8)
     
-    # Prepara l'immagine per il modello quantizzato (INT8)
-    if input_details['dtype'] == np.int8:
+    # --- MODIFICA CHIAVE: Gestione di diversi tipi di dati di input ---
+    print(f"Il modello si aspetta un input di tipo: {np.dtype(input_type).name}")
+
+    if input_type == np.int8:
+        # Caso 1: Quantizzazione a interi con segno (-128 a 127)
         input_scale, input_zero_point = input_details['quantization']
-        # La formula corretta per la quantizzazione
         input_data = (image_data / input_scale + input_zero_point).astype(np.int8)
-    else: # Se il modello fosse float
+        print("Dati di input convertiti in INT8.")
+        
+    elif input_type == np.uint8:
+        # Caso 2: Quantizzazione a interi senza segno (0 a 255) -> IL TUO CASO
+        # L'immagine è già nel range [0, 255], basta convertirne il tipo.
+        input_data = image_data.astype(np.uint8)
+        print("Dati di input convertiti in UINT8.")
+        
+    else: # Caso 3: Il modello si aspetta FLOAT32 (nessuna quantizzazione dell'input)
         input_data = image_data.astype(np.float32)
+        print("Dati di input mantenuti come FLOAT32.")
+    
+    # --- FINE MODIFICA ---
 
     interpreter.set_tensor(input_details['index'], input_data)
     
