@@ -11,7 +11,7 @@ class Model(ABC):
 
 # Implementazione MobileNetV2
 class MobileNetV2(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su MobileNetV2 pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -31,7 +31,7 @@ class MobileNetV2(Model):
             include_top=False,
             weights='imagenet'
         )
-        base_model.trainable = False
+        base_model.trainable = not freeze_base
 
         # 2. Definisci il flusso del modello con l'API Funzionale
         # Questo è il punto di ingresso del nostro grafo
@@ -56,7 +56,7 @@ class MobileNetV2(Model):
         return model
 # Implementazione MobileNet
 class MobileNet(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su MobileNet pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -76,7 +76,7 @@ class MobileNet(Model):
             include_top=False,
             weights='imagenet'
         )
-        base_model.trainable = False
+        base_model.trainable = not freeze_base
 
         # 2. Definisci il flusso del modello con l'API Funzionale
         # Questo è il punto di ingresso del nostro grafo
@@ -102,7 +102,7 @@ class MobileNet(Model):
 
 # Implementazione NASNetMobile
 class NASNetMobile(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su NASNetMobile pre-addestrata,
         sostituendo il classificatore finale con uno basato su Conv2D 1x1.
@@ -122,7 +122,7 @@ class NASNetMobile(Model):
             include_top=False,
             weights='imagenet'
         )
-        base_model.trainable = False
+        base_model.trainable = not freeze_base
 
         # 2. Definisci il flusso del modello con l'API Funzionale
         # Questo è il punto di ingresso del nostro grafo
@@ -148,7 +148,7 @@ class NASNetMobile(Model):
 
 # Implementazione ResNet50
 class ResNet50(Model):
-    def get_model(self, input_shape=(96, 96, 3), num_classes=2):
+    def get_model(self, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         """
         Costruisce un modello basato su ResNet50 usando l'API Funzionale,
         ottimale per la conversione a TFLite.
@@ -168,7 +168,7 @@ class ResNet50(Model):
             include_top=False,
             weights='imagenet'
         )
-        base_model.trainable = False
+        base_model.trainable = not freeze_base
 
         # 2. Definisci il flusso del modello con l'API Funzionale
         # Questo è il punto di ingresso del nostro grafo
@@ -287,16 +287,16 @@ class CustomCNN_Conv2D_Classifier(Model):
 # Factory per creare i modelli
 class DenseModelFactory:
     @staticmethod
-    def create_model(model, input_shape=(96, 96, 3), num_classes=2):
+    def create_model(model, input_shape=(96, 96, 3), num_classes=2, freeze_base=True):
         print(f"Tentativo di creazione del modello {model}, con classificatore fully connected...")
         if model == "MobileNetV2":
-            return MobileNetV2().get_model(input_shape, num_classes)
+            return MobileNetV2().get_model(input_shape, num_classes, freeze_base)
         elif model == "NASNetMobile":
-            return NASNetMobile().get_model(input_shape, num_classes)
+            return NASNetMobile().get_model(input_shape, num_classes, freeze_base)
         elif model == "ResNet50":
-            return ResNet50().get_model(input_shape, num_classes)
+            return ResNet50().get_model(input_shape, num_classes, freeze_base)
         elif model == "MobileNet":
-            return MobileNet().get_model(input_shape, num_classes)
+            return MobileNet().get_model(input_shape, num_classes, freeze_base)
         elif model == "CustomCNN_Conv1D_Classifier":
             return CustomCNN_Conv1D_Classifier().get_model(input_shape, num_classes)
         elif model == "CustomCNN_Conv2D_Classifier":

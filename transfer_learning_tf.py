@@ -36,7 +36,8 @@ class TransferLearning:
                  results_dir:str='keras_models_performances',
                  mobilenet_alpha: float = 1.0,
                  name_to_save_models:list[str] = None,
-                 freeze_base: bool = True):
+                 freeze_base: bool = True,
+                 final_dense_classifier: bool = False):
         
         self.train_dir = train_dir
         self.val_dir = val_dir
@@ -233,7 +234,10 @@ class TransferLearning:
         
         return models.Model(inputs, outputs)
         '''
-        model = ModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes, self.freeze_base)
+        if self.final_dense_classifier:
+            model = DenseModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes, self.freeze_base)
+        else:
+            model = NoDenseModelFactory.create_model(model_name_str, (self.img_height, self.img_width, 3), self.num_classes, self.freeze_base)
         return model
     
     def evaluate_model(self, model, model_name):
