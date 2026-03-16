@@ -175,6 +175,7 @@ cython_debug/
 
 #Data files
 dataset/
+dataset_splitted/
 dataset1/
 augmented_dataset/
 augmented_dataset_splitted/
