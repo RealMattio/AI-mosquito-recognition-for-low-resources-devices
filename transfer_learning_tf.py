@@ -394,7 +394,7 @@ class TransferLearning:
             
             filename = f"{name_to_save}_final_model.keras"
             path = os.path.join(self.models_dir, filename)
-            final_model.save(path)
+            final_model.save(path, include_optimizer=False)
             print(f"Modello finale salvato in: {path}")
 
             # --- Salvataggio della storia del modello in un file JSON ---
