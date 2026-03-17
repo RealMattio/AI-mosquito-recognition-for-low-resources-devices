@@ -120,4 +120,8 @@ if __name__ == '__main__':
 '''
 # Esempio di utilizzo:
 python benchmark/keras_to_tflite_simplified.py --source_dir keras_training/keras_models_1607 --model_name CustomCNN --dest_dir tflite_models/tflite_models_1607
+
+python benchmark/keras_to_tflite_simplified.py --source_dir final_keras_models/LightModels --model_name MobileNet_full --dest_dir tflite_models/tflite_models_full_trained
+
+
 '''

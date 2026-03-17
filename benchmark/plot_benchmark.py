@@ -30,21 +30,21 @@ def create_single_boxplot(ax, dataframe, title: str, palette: str):
     clean_df['Modello'] = clean_df['Modello'].str.replace(' (TFLite)', '').str.replace(' (Keras)', '')
 
     # Ordina i modelli in base alla loro mediana
-    sorted_models = clean_df.groupby('Modello')['Tempo di Inferenza (ms)'].median().sort_values().index
-    
+    sorted_models = clean_df.groupby('Modello')['Inference Time (ms)'].median().sort_values().index
+
     sns.boxplot(
         ax=ax,
         data=clean_df,
         y='Modello',
-        x='Tempo di Inferenza (ms)',
+        x='Inference Time (ms)',
         order=sorted_models,
         orient='h',
         palette=palette,
         showfliers=False  # <-- MODIFICA CHIAVE: Nasconde gli outlier
     )
-    ax.set_title(title, fontsize=20)
-    ax.set_xlabel('Tempo di Inferenza (ms)', fontsize=20)
-    ax.set_ylabel('Modello', fontsize=20)
+    ax.set_title(title, fontsize=30)
+    ax.set_xlabel('Inference Time (ms)', fontsize=24)
+    ax.set_ylabel('Model', fontsize=30)
     ax.xaxis.grid(True)
     ax.set(xlim=(0, None))
 
@@ -70,7 +70,7 @@ def create_all_benchmark_plots(json_path: str, output_prefix: str):
         print("ERRORE: Il file JSON non contiene la chiave 'benchmark_runs'.")
         return
 
-    plot_data = [{'Modello': clean_model_name(raw_name), 'Tempo di Inferenza (ms)': t}
+    plot_data = [{'Modello': clean_model_name(raw_name), 'Inference Time (ms)': t}
                  for raw_name, results in benchmark_data.items()
                  for t in results.get('individual_times_ms', [])]
                  
@@ -84,16 +84,16 @@ def create_all_benchmark_plots(json_path: str, output_prefix: str):
     
     system_info = data.get('system_info', {})
     cpu_brand = system_info.get('cpu', {}).get('brand', 'Dispositivo Sconosciuto')
-    main_title = f'Benchmark dei Tempi di Inferenza'
-    #main_title = f'Benchmark dei Tempi di Inferenza\n(Dispositivo: {cpu_brand})'
+    main_title = f'Inference Time Benchmark'
+    #main_title = f'Inference Time Benchmark\n(Device: {cpu_brand})'
 
     sns.set_theme(style="whitegrid")
 
     # --- 2. Creazione Grafico 1: Solo Keras ---
     print("Creazione grafico per i modelli Keras...")
-    fig_keras, ax_keras = plt.subplots(figsize=(10, 5))
+    fig_keras, ax_keras = plt.subplots(figsize=(12, 7))
     #fig_keras.suptitle(main_title, fontsize=18)
-    create_single_boxplot(ax_keras, df_keras, "Performance Modelli Keras (Originali)", "autumn")
+    create_single_boxplot(ax_keras, df_keras, "Keras Models Performance (Original)", "autumn")
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     keras_output_path = f"{output_prefix}_keras.png"
     plt.savefig(keras_output_path, dpi=300)
@@ -102,9 +102,9 @@ def create_all_benchmark_plots(json_path: str, output_prefix: str):
 
     # --- 3. Creazione Grafico 2: Solo TFLite ---
     print("Creazione grafico per i modelli TFLite...")
-    fig_tflite, ax_tflite = plt.subplots(figsize=(10, 5))
+    fig_tflite, ax_tflite = plt.subplots(figsize=(12, 7))
     #fig_tflite.suptitle(main_title, fontsize=18)
-    create_single_boxplot(ax_tflite, df_tflite, "Performance Modelli TFLite (Quantizzati INT8)", "summer")
+    create_single_boxplot(ax_tflite, df_tflite, "TFLite Models Performance (INT8 Quantized)", "summer")
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     tflite_output_path = f"{output_prefix}_tflite.png"
     plt.savefig(tflite_output_path, dpi=300)
@@ -113,17 +113,17 @@ def create_all_benchmark_plots(json_path: str, output_prefix: str):
 
     # --- 4. Creazione Grafico 3: Combinato ---
     print("Creazione grafico combinato...")
-    fig_combined, axes = plt.subplots(1, 2, figsize=(20, 5))
-    fig_combined.suptitle(main_title, fontsize=20)
+    fig_combined, axes = plt.subplots(1, 2, figsize=(24, 7))
+    #fig_combined.suptitle(main_title, fontsize=32)
     
-    create_single_boxplot(axes[1], df_keras, "Performance Modelli Keras (Originali)", "autumn")
-    create_single_boxplot(axes[0], df_tflite, "Performance Modelli TFLite (Quantizzati INT8)", "summer")
+    create_single_boxplot(axes[1], df_keras, "Keras Models Performance (Original)", "autumn")
+    create_single_boxplot(axes[0], df_tflite, "TFLite Models Performance (INT8 Quantized)", "summer")
     
     axes[1].set_ylabel('') # Rimuoviamo etichetta Y ridondante
 
     # <-- MODIFICA: Aumenta la dimensione dei font per gli indici (tick labels)
-    axes[0].tick_params(axis='both', which='major', labelsize=20)
-    axes[1].tick_params(axis='both', which='major', labelsize=20)
+    axes[0].tick_params(axis='both', which='major', labelsize=30)
+    axes[1].tick_params(axis='both', which='major', labelsize=30)
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     combined_output_path = f"{output_prefix}_combined.png"
@@ -159,4 +159,4 @@ if __name__ == '__main__':
 
 # Esempio di utilizzo:
 # python benchmark/plot_benchmark.py benchmark/benchmark_results/benchmark_results_models_1108_on_WSL.json --prefix benchmark/benchmark_results_grafici/benchmark_results_WSL
-# python benchmark/plot_benchmark.py benchmark/benchmark_results/benchmark_results_models_1108_on_RaspPi5.json --prefix benchmark/benchmark_results_grafici/new_benchmark_results_Pi5
+# python benchmark/plot_benchmark.py benchmark/benchmark_results/benchmark_results_models_1108_on_RaspPi5.json --prefix benchmark/benchmark_results_grafici/benchmark_results_Pi5

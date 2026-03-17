@@ -56,7 +56,7 @@ def create_cross_comparison_plot(wsl_json_path: str, pi_json_path: str, output_i
                         'Architettura': arch,
                         'Piattaforma': platform_name,
                         'Formato': fmt,
-                        'Tempo di Inferenza (ms)': t
+                        'Inference Time (ms)': t
                     })
 
     if not all_data:
@@ -76,7 +76,7 @@ def create_cross_comparison_plot(wsl_json_path: str, pi_json_path: str, output_i
     fig, axes = plt.subplots(2, 1, figsize=(12, 14), sharex=True)
     
     # Titolo generale
-    fig.suptitle('Confronto Performance Inferenza: Keras vs TFLite', fontsize=20, weight='bold')
+    fig.suptitle('Inference Performance Comparison: Keras vs TFLite', fontsize=20, weight='bold')
 
     # Palette di colori e ordine per la legenda
     palette = {"Keras": "#d95f02", "TFLite": "#7570b3"}
@@ -85,10 +85,10 @@ def create_cross_comparison_plot(wsl_json_path: str, pi_json_path: str, output_i
     # Subplot 1: MobileNetV2
     ax1 = axes[0]
     sns.boxplot(ax=ax1, data=df[df['Architettura'] == 'MobileNetV2'],
-                y='Piattaforma', x='Tempo di Inferenza (ms)', hue='Formato',
+                y='Piattaforma', x='Inference Time (ms)', hue='Formato',
                 hue_order=hue_order, palette=palette, showfliers=False)
     ax1.set_title('MobileNetV2', fontsize=16)
-    ax1.set_ylabel('Piattaforma', fontsize=12)
+    ax1.set_ylabel('Platform', fontsize=12)
     ax1.set_xlabel('') # Rimuoviamo l'etichetta x per non ripeterla
     ax1.set_xscale('log') # <-- Scala logaritmica per una migliore visualizzazione
     ax1.xaxis.set_major_formatter(mticker.ScalarFormatter()) # Formatta i tick per la leggibilità
@@ -96,11 +96,11 @@ def create_cross_comparison_plot(wsl_json_path: str, pi_json_path: str, output_i
     # Subplot 2: ResNet50
     ax2 = axes[1]
     sns.boxplot(ax=ax2, data=df[df['Architettura'] == 'ResNet50'],
-                y='Piattaforma', x='Tempo di Inferenza (ms)', hue='Formato',
+                y='Piattaforma', x='Inference Time (ms)', hue='Formato',
                 hue_order=hue_order, palette=palette, showfliers=False)
     ax2.set_title('ResNet50', fontsize=16)
-    ax2.set_ylabel('Piattaforma', fontsize=12)
-    ax2.set_xlabel('Tempo di Inferenza (ms) - Scala Logaritmica', fontsize=12)
+    ax2.set_ylabel('Platform', fontsize=12)
+    ax2.set_xlabel('Inference Time (ms) - Logarithmic Scale', fontsize=12)
     ax2.set_xscale('log') # <-- Scala logaritmica
     ax2.xaxis.set_major_formatter(mticker.ScalarFormatter())
 
@@ -108,7 +108,7 @@ def create_cross_comparison_plot(wsl_json_path: str, pi_json_path: str, output_i
     handles, labels = ax1.get_legend_handles_labels()
     ax1.get_legend().remove()
     ax2.get_legend().remove()
-    fig.legend(handles, labels, title='Formato Modello', loc='upper right', bbox_to_anchor=(0.95, 0.92))
+    fig.legend(handles, labels, title='Model Format', loc='upper right', bbox_to_anchor=(0.95, 0.92))
 
     plt.tight_layout(rect=[0, 0, 1, 0.95]) # Adegua gli spazi per il titolo
     

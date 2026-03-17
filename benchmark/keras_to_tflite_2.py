@@ -6,11 +6,12 @@ from tqdm import tqdm
 
 # --- 1. PARAMETRI DI CONFIGURAZIONE ---
 
+MODELLO = 'ResNet50' # MODIFICA QUESTO: Scegli il modello da convertire (es. 'MobileNet', 'ResNet50', ecc.)
 # Percorso del tuo modello Keras salvato
-KERAS_MODEL_PATH = 'keras_training/keras_models_1108/NASNetMobile_ClassicDenseClassifier_final_model.keras' # MODIFICA QUESTO
+KERAS_MODEL_PATH = f'final_keras_models/LightModels/{MODELLO}_full_weights.keras' # MODIFICA QUESTO
 
 # Percorso dove salvare il modello TFLite convertito
-TFLITE_MODEL_PATH = 'tflite_models/tflite_models_1108/NASNetMobile_ClassicDenseClassifier_final_model.tflite' # MODIFICA QUESTO
+TFLITE_MODEL_PATH = f'tflite_models/tflite_models_full_trained/{MODELLO}_full_quant_int8.tflite' # MODIFICA QUESTO
 
 # Percorso della cartella contenente i dati per la calibrazione
 # (usa un piccolo subset del tuo set di addestramento)
