@@ -190,4 +190,4 @@ if __name__ == '__main__':
 # Esempio di utilizzo:
 # python benchmark/evaluate_tflite.py --model_path path/to/model.tflite --dataset_dir path/to/test_dataset --output_dir path/to/output
 # python benchmark/evaluate_tflite.py --model_path tflite_models/tflite_models_1108/ResNet50_ClassicDenseClassifier_final_model.tflite --output_dir tflite_models/tflite_models_1108
-# python benchmark/evaluate_tflite.py --model_path tflite_models/tflite_models_full_trained/MobileNet_full_quant_int8.tflite --output_dir tflite_models/tflite_models_full_trained
+# python benchmark/evaluate_tflite.py --model_path tflite_models/tflite_models_full_trained/NASNetMobile_full_quant_int8.tflite --output_dir tflite_models/tflite_models_full_trained

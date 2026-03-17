@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 # --- 1. PARAMETRI DI CONFIGURAZIONE ---
 
-MODELLO = 'ResNet50' # MODIFICA QUESTO: Scegli il modello da convertire (es. 'MobileNet', 'ResNet50', ecc.)
+MODELLO = 'NASNetMobile' # MODIFICA QUESTO: Scegli il modello da convertire (es. 'MobileNet', 'ResNet50', ecc.)
 # Percorso del tuo modello Keras salvato
 KERAS_MODEL_PATH = f'final_keras_models/LightModels/{MODELLO}_full_weights.keras' # MODIFICA QUESTO
 

@@ -1,0 +1,32 @@
+{
+    "classification_report": {
+        "Mosquito": {
+            "precision": 0.5862745098039216,
+            "recall": 0.9115853658536586,
+            "f1-score": 0.7136038186157518,
+            "support": 328.0
+        },
+        "Not_Mosquito": {
+            "precision": 0.9818976279650437,
+            "recall": 0.8817264573991032,
+            "f1-score": 0.9291199054932073,
+            "support": 1784.0
+        },
+        "accuracy": 0.8863636363636364,
+        "macro avg": {
+            "precision": 0.7840860688844826,
+            "recall": 0.8966559116263808,
+            "f1-score": 0.8213618620544796,
+            "support": 2112.0
+        },
+        "weighted avg": {
+            "precision": 0.9204561588566875,
+            "recall": 0.8863636363636364,
+            "f1-score": 0.8956496041220874,
+            "support": 2112.0
+        }
+    },
+    "confusion_matrix_path": "keras_training/keras_models_170326-1620_False_unfreeze_aug75pct_performances_and_history/confusion_matrix_MobileNet_ClassicDenseClassifier.png",
+    "roc_auc": 0.9662720113748222,
+    "roc_curve_path": "keras_training/keras_models_170326-1620_False_unfreeze_aug75pct_performances_and_history/roc_curve_MobileNet_ClassicDenseClassifier.png"
+}

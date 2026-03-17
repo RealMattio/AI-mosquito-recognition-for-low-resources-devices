@@ -1,32 +1,32 @@
 {
     "classification_report": {
         "Mosquito": {
-            "precision": 0.2430678466076696,
+            "precision": 0.21914893617021278,
             "recall": 0.9951690821256038,
-            "f1-score": 0.39070649596965384,
+            "f1-score": 0.35919790758500436,
             "support": 414.0
         },
         "Not_Mosquito": {
-            "precision": 0.9979508196721312,
-            "recall": 0.4315463003987594,
-            "f1-score": 0.6025363439529848,
+            "precision": 0.9974715549936789,
+            "recall": 0.34957908728400533,
+            "f1-score": 0.5177165354330708,
             "support": 2257.0
         },
-        "accuracy": 0.5189067764882067,
+        "accuracy": 0.44964432796705356,
         "macro avg": {
-            "precision": 0.6205093331399004,
-            "recall": 0.7133576912621816,
-            "f1-score": 0.49662141996131937,
+            "precision": 0.6083102455819458,
+            "recall": 0.6723740847048045,
+            "f1-score": 0.4384572215090376,
             "support": 2671.0
         },
         "weighted avg": {
-            "precision": 0.8809453719564115,
-            "recall": 0.5189067764882067,
-            "f1-score": 0.5697031140521616,
+            "precision": 0.8768330060633475,
+            "recall": 0.44964432796705356,
+            "f1-score": 0.49314644485684483,
             "support": 2671.0
         }
     },
     "confusion_matrix_path": "tflite_models/tflite_models_full_trained/confusion_matrix_NASNetMobile_full_quant_int8.png",
-    "roc_auc": 0.7614153711801609,
+    "roc_auc": 0.7069375148491328,
     "roc_curve_path": "tflite_models/tflite_models_full_trained/roc_curve_NASNetMobile_full_quant_int8.png"
 }
