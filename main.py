@@ -16,10 +16,16 @@ def main():
         help="Scongela i pesi della base pre-addestrata per abilitare il fine-tuning completo (default: pesi congelati)"
     )
     parser.add_argument(
-        '--augmented-dataset',
-        action='store_true',
-        default=False,
-        help="Utilizza il dataset aumentato (default: dataset originale senza augmentation)"
+        '--aug-percentage',
+        type=int,
+        choices=[0, 25, 50, 75, 100],
+        default=0,
+        help=(
+            "Percentuale di data augmentation da includere nel training. "
+            "0=solo dataset originale, 100=tutto il dataset aumentato. "
+            "I valori intermedi aggiungono la frazione corrispondente delle immagini augmentate "
+            "al dataset originale (es. 50 = originali + 50%% delle augmented). (default: 0)"
+        )
     )
     args = parser.parse_args()
     """ # Inizializza il preprocessore delle immagini
@@ -28,12 +34,14 @@ def main():
     # Esegui il preprocessing delle immagini
     X_train, y_train, X_val, y_val, X_test, y_test, class_names, label_map = preprocessor.run_preprocessing_pipeline()
     """
-    # Devi solo fornire i percorsi alle cartelle del tuo dataset
-    TRAIN_PATH = 'augmented_dataset_splitted/train' if args.augmented_dataset else 'dataset_splitted/train'
-    VAL_PATH = 'augmented_dataset_splitted/validation' if args.augmented_dataset else 'dataset_splitted/validation'
-    TEST_PATH = 'augmented_dataset_splitted/test' if args.augmented_dataset else 'dataset_splitted/test'
+    # 0% usa il dataset originale, altrimenti si parte sempre da augmented_dataset_splitted
+    # e si filtra la percentuale di immagini augmentate desiderata
+    BASE_PATH = 'augmented_dataset_splitted' if args.aug_percentage > 0 else 'dataset_splitted'
+    TRAIN_PATH = f'{BASE_PATH}/train'
+    VAL_PATH = f'{BASE_PATH}/validation'
+    TEST_PATH = f'{BASE_PATH}/test'
 
-    print(f"DATASET AUGMENTED: {'Sì' if args.augmented_dataset else 'No'}")
+    print(f"DATASET: aug_percentage={args.aug_percentage}% (source: {BASE_PATH})")
 
     # Assicurati che le cartelle esistano prima di eseguire
     if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH) or not os.path.exists(TEST_PATH):
@@ -50,8 +58,9 @@ def main():
             learning_rate=0.002,
             k_folds=5,
             lr_patience=10,
-            models_dir= f"keras_training/keras_models_{DATE}_{args.unfreeze}_unfreeze_{args.augmented_dataset}_augmented_models",
-            results_dir=f"keras_training/keras_models_{DATE}_{args.unfreeze}_unfreeze_{args.augmented_dataset}_augmented_performances_and_history",
+            aug_percentage=args.aug_percentage,
+            models_dir= f"keras_training/keras_models_{DATE}_{args.unfreeze}_unfreeze_aug{args.aug_percentage}pct_models",
+            results_dir=f"keras_training/keras_models_{DATE}_{args.unfreeze}_unfreeze_aug{args.aug_percentage}pct_performances_and_history",
             image_size=(96, 96),
             freeze_base=not args.unfreeze,
             # models_names=['CustomCNN'],

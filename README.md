@@ -18,11 +18,12 @@ Pipeline completa di **classificazione binaria zanzara / non-zanzara** ottimizza
 3. [Fase 2 — Analisi del Dataset](#fase-2--analisi-del-dataset)
 4. [Fase 3 — Baseline con ML Classico](#fase-3--baseline-con-ml-classico)
 5. [Fase 4 — Transfer Learning (Deep Learning)](#fase-4--transfer-learning-deep-learning)
-6. [Fase 5 — Esportazione e Quantizzazione TFLite](#fase-5--esportazione-e-quantizzazione-tflite)
-7. [Fase 6 — Benchmarking su Dispositivo](#fase-6--benchmarking-su-dispositivo)
-8. [Risultati](#risultati)
-9. [Prossimi Sviluppi](#prossimi-sviluppi)
-10. [Ringraziamenti](#ringraziamenti)
+6. [Fase 5 — Ablation Study](#fase-5--ablation-study)
+7. [Fase 6 — Esportazione e Quantizzazione TFLite](#fase-6--esportazione-e-quantizzazione-tflite)
+8. [Fase 7 — Benchmarking su Dispositivo](#fase-7--benchmarking-su-dispositivo)
+9. [Risultati](#risultati)
+10. [Prossimi Sviluppi](#prossimi-sviluppi)
+11. [Ringraziamenti](#ringraziamenti)
 
 ---
 
@@ -161,12 +162,20 @@ Addestra e valuta quattro modelli di ML classico (SVC lineare, MLP, RandomForest
 ### Entry point
 
 ```bash
-# Con pesi della base congelati (default — feature extraction pura)
+# Con pesi della base congelati, dataset originale (default)
 python main.py
 
 # Con pesi della base scongelati (fine-tuning completo)
 python main.py --unfreeze
+
+# Con dataset parzialmente aumentato (es. 50% delle immagini augmentate)
+python main.py --aug-percentage 50
+
+# Fine-tuning completo su dataset completamente aumentato
+python main.py --unfreeze --aug-percentage 100
 ```
+
+Per una descrizione completa del parametro `--aug-percentage` e della sua interazione con `--unfreeze` vedi [Fase 5 — Ablation Study](#fase-5--ablation-study).
 
 ### Cosa fa `main.py`
 
@@ -213,7 +222,79 @@ keras_training/
 
 ---
 
-## Fase 5 — Esportazione e Quantizzazione TFLite
+## Fase 5 — Ablation Study
+
+L'ablation study analizza come le performance dei modelli variano al variare di due fattori indipendenti:
+
+- **Dimensione del dataset** — quante immagini augmentate vengono incluse nel training (da 0% a 100% dell'augmentation prodotta)
+- **Strategia di freeze** — se la base pre-addestrata è tenuta congelata (feature extraction pura) o scongelata (fine-tuning completo)
+
+### Asse 1 — Percentuale di Data Augmentation
+
+Il parametro `--aug-percentage` controlla quante immagini augmentate vengono aggiunte al training, espresse come frazione delle immagini generate dall'augmentation rispetto al totale disponibile. La formula è:
+
+```
+N_train = N_originali + (aug_percentage / 100) × N_augmentate
+```
+
+Ad esempio, con 500 immagini originali e 2500 augmentate (5 versioni per immagine):
+
+| `--aug-percentage` | Immagini di training |
+|---|---|
+| 0% | 500 (solo originali, da `dataset_splitted/`) |
+| 25% | 500 + 625 = 1 125 |
+| 50% | 500 + 1 250 = 1 750 |
+| 75% | 500 + 1 875 = 2 375 |
+| 100% | 500 + 2 500 = 3 000 (tutto il dataset aumentato) |
+
+Il campionamento delle immagini augmentate è stratificato per classe e deterministico (seed fisso = 42), garantendo la riproducibilità degli esperimenti.
+
+### Asse 2 — Freeze / Unfreeze della Base
+
+Il flag `--unfreeze` determina se i pesi della backbone pre-addestrata vengono aggiornati durante il training:
+
+| Flag | Strategia | Layer addestrabili |
+|---|---|---|
+| _(assente)_ | Feature extraction | solo il classificatore |
+| `--unfreeze` | Fine-tuning completo | intera rete |
+
+### Utilizzo
+
+```bash
+# Dataset originale, pesi congelati (baseline)
+python main.py --aug-percentage 0
+
+# 50% di augmentation, pesi congelati
+python main.py --aug-percentage 50
+
+# Dataset completamente aumentato, fine-tuning completo
+python main.py --aug-percentage 100 --unfreeze
+
+# Scansione completa dell'ablation study (esempio con script di shell)
+for pct in 0 25 50 75 100; do
+    for freeze in "" "--unfreeze"; do
+        python main.py --aug-percentage $pct $freeze
+    done
+done
+```
+
+### Output e Naming Convention
+
+Ogni run produce cartelle con nome che codifica entrambi i fattori:
+
+```
+keras_training/
+├── keras_models_DDMMYY-HHMM_False_unfreeze_aug0pct_models/
+├── keras_models_DDMMYY-HHMM_False_unfreeze_aug50pct_models/
+├── keras_models_DDMMYY-HHMM_True_unfreeze_aug100pct_models/
+...
+```
+
+dove `False_unfreeze` = pesi congelati, `True_unfreeze` = fine-tuning completo.
+
+---
+
+## Fase 6 — Esportazione e Quantizzazione TFLite
 
 ```bash
 # Conversione base con quantizzazione INT8
@@ -244,7 +325,7 @@ Esegue il modello TFLite quantizzato sull'intero test set e restituisce accuracy
 
 ---
 
-## Fase 6 — Benchmarking su Dispositivo
+## Fase 7 — Benchmarking su Dispositivo
 
 ```bash
 python benchmark/run_benchmark.py

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import time
 import os
+import random
 import numpy as np
 import json
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
@@ -37,7 +38,8 @@ class TransferLearning:
                  mobilenet_alpha: float = 1.0,
                  name_to_save_models:list[str] = None,
                  freeze_base: bool = True,
-                 final_dense_classifier: bool = False):
+                 final_dense_classifier: bool = False,
+                 aug_percentage: int = 0):
         
         self.train_dir = train_dir
         self.val_dir = val_dir
@@ -56,6 +58,7 @@ class TransferLearning:
         self.results_dir = results_dir
         self.mobilenet_alpha = mobilenet_alpha
         self.freeze_base = freeze_base
+        self.aug_percentage = aug_percentage
         self.name_to_save_models = name_to_save_models or [f"ResNet50_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNetV2_{time.strftime('%Y%m%d_%H%M%S')}", f"NASNetMobile_{time.strftime('%Y%m%d_%H%M%S')}", 
                                                            f"CustomCNN_Conv1D_{time.strftime('%Y%m%d_%H%M%S')}", f"CustomCNN_Conv2D_{time.strftime('%Y%m%d_%H%M%S')}", f"MobileNet_{time.strftime('%Y%m%d_%H%M%S')}"]
         os.makedirs(self.models_dir, exist_ok=True)
@@ -85,10 +88,26 @@ class TransferLearning:
         label_map = {name: i for i, name in enumerate(self.class_names)}
 
         for class_dir in class_dirs:
-            for file in os.scandir(class_dir.path):
-                if file.name.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    filepaths.append(file.path)
-                    labels.append(label_map[class_dir.name])
+            all_files = [f for f in os.scandir(class_dir.path)
+                         if f.name.lower().endswith(('.png', '.jpg', '.jpeg'))]
+
+            if 0 < self.aug_percentage < 100:
+                # Separa le immagini originali dalle augmentate (convenzione: _original. e _aug_)
+                original_files = [f for f in all_files if '_original.' in f.name]
+                aug_files = [f for f in all_files if '_aug_' in f.name]
+                n_to_keep = int(len(aug_files) * self.aug_percentage / 100)
+                rng = random.Random(42)
+                aug_files_to_keep = rng.sample(aug_files, n_to_keep)
+                selected_files = original_files + aug_files_to_keep
+                print(f"  [{class_dir.name}] originali: {len(original_files)}, "
+                      f"aug totali: {len(aug_files)}, aug selezionate ({self.aug_percentage}%): {n_to_keep}")
+            else:
+                selected_files = all_files
+
+            for file in selected_files:
+                filepaths.append(file.path)
+                labels.append(label_map[class_dir.name])
+
         return filepaths, labels
     
     def _parse_image(self, filename, label):
